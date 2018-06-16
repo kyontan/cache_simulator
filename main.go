@@ -32,10 +32,13 @@ func (p *Packet) String() string {
 	}
 }
 
-type FiveTuple [5]uint64
+// type FiveTuple [5]uint64
+type FiveTuple struct {
+	Proto, SrcIP, DstIP, SrcPort, DstPort uint64
+}
 
 // {Proto, SrcIP, DstIP, SrcPort or 0, DstPort or 0}
-func (p *Packet) FiveTuple() FiveTuple {
+func (p *Packet) FiveTuple() *FiveTuple {
 	var proto64 uint64
 	for i := 0; i < len(p.Proto) && i < 5; i++ {
 		proto64 = proto64 << 8
@@ -46,20 +49,21 @@ func (p *Packet) FiveTuple() FiveTuple {
 
 	switch p.Proto {
 	case "tcp", "udp":
-		return FiveTuple{proto64, srcIp64, dstIp64, p.SrcPort, p.DstPort}
+		return &FiveTuple{proto64, srcIp64, dstIp64, p.SrcPort, p.DstPort}
 	// case "icmp":
 	// 	return FiveTuple{p.Proto, p.SrcIP, p.DstIP, 0, 0}
 	default:
-		return FiveTuple{proto64, srcIp64, dstIp64, 0, 0}
+		return nil
+		// return FiveTuple{proto64, srcIp64, dstIp64, 0, 0}
 	}
 }
 
 func (f FiveTuple) String() string {
-	proto64 := f[0]
-	srcIp64 := f[1]
-	dstIp64 := f[2]
-	SrcPort := f[3]
-	DstPort := f[4]
+	proto64 := f.Proto
+	srcIp64 := f.SrcIP
+	dstIp64 := f.DstIP
+	SrcPort := f.SrcPort
+	DstPort := f.DstPort
 	var proto string
 	for i := 0; i < 5 && proto64 != 0; i++ {
 		c := proto64 & 0xff
@@ -126,6 +130,7 @@ type CacheSimulatorStat struct {
 }
 
 type CacheSimulator interface {
+	IsCached(p *Packet) (cached bool, idx *int)
 	Process(p *Packet) (hit bool)
 	GetStat() (stat CacheSimulatorStat)
 }
@@ -153,46 +158,65 @@ func NewSimpleLRUCache(size uint) *SimpleLRUCache {
 	}
 }
 
+func (lc *SimpleLRUCache) IsCached(p *Packet) (bool, *int) {
+	return lc.IsCachedWithFiveTuple(*p.FiveTuple())
+}
+
+func (lc *SimpleLRUCache) IsCachedWithFiveTuple(f FiveTuple) (bool, *int) {
+	for i, cacheEntry := range lc.Cache {
+		if cacheEntry == f {
+			return true, &i
+		}
+	}
+
+	return false, nil
+}
+
+func (lc *SimpleLRUCache) ReplaceOldestEntry(p *Packet) (replacedIdx int) {
+	return lc.ReplaceOldestEntryWithFiveTuple(*p.FiveTuple())
+}
+
+func (lc *SimpleLRUCache) ReplaceOldestEntryWithFiveTuple(f FiveTuple) (replacedIdx int) {
+	oldestCacheAge := -1
+	oldestCacheAgeIdx := -1
+	for i, age := range lc.CacheAge {
+		if oldestCacheAge < age {
+			oldestCacheAge = age
+			oldestCacheAgeIdx = i
+		}
+	}
+
+	// fmt.Printf("Replace cache entry idx:%v, age:%v, refered:%v, entry:%v\n", oldestCacheAgeIdx, oldestCacheAge, lc.CacheRefered[oldestCacheAgeIdx], lc.Cache[oldestCacheAgeIdx])
+	lc.Cache[oldestCacheAgeIdx] = f
+	lc.CacheAge[oldestCacheAgeIdx] = 0
+	lc.CacheRefered[oldestCacheAgeIdx] = 0
+
+	return oldestCacheAgeIdx
+}
+
 func (lc *SimpleLRUCache) Process(p *Packet) bool {
 	hit := false
 	hitIdx := -1
 
-	fiveTuple := p.FiveTuple()
-
 	// find cache
-	for i, cacheEntry := range lc.Cache {
-		if cacheEntry == fiveTuple {
-			hit = true
-			hitIdx = i
-			lc.CacheRefered[i] += 1
-			// fmt.Printf("Cache hit! idx:%v, age:%v, refered:%v, entry:%v\n", i, lc.CacheAge[i], lc.CacheRefered[i], cacheEntry)
-			break
-		}
+	if cached, idx := lc.IsCached(p); cached {
+		hit = cached
+		hitIdx = *idx
+		lc.CacheRefered[hitIdx] += 1
 	}
 
 	for i, _ := range lc.Cache {
-		if i == hitIdx {
-			lc.CacheAge[i] = 0
-		} else {
-			lc.CacheAge[i] += 1
-		}
+		lc.CacheAge[i] += 1
+	}
+
+	if hit {
+		lc.Stat.Hit += 1
+		lc.CacheAge[hitIdx] = 0
 	}
 
 	// replace cache entry if not hit
 	if !hit {
-		oldestCacheAge := 0
-		oldestCacheAgeIdx := -1
-		for i, age := range lc.CacheAge {
-			if oldestCacheAge < age {
-				oldestCacheAge = age
-				oldestCacheAgeIdx = i
-			}
-		}
-
-		// fmt.Printf("Replace cache entry idx:%v, age:%v, refered:%v, entry:%v\n", oldestCacheAgeIdx, oldestCacheAge, lc.CacheRefered[oldestCacheAgeIdx], lc.Cache[oldestCacheAgeIdx])
-		lc.Cache[oldestCacheAgeIdx] = fiveTuple
-		lc.CacheAge[oldestCacheAgeIdx] = 0
-		lc.CacheRefered[oldestCacheAgeIdx] = 0
+		lc.ReplaceOldestEntry(p)
 	}
 
 	// fmt.Println(lc.Cache)
@@ -200,15 +224,51 @@ func (lc *SimpleLRUCache) Process(p *Packet) bool {
 
 	lc.Stat.Processed += 1
 
-	if hit {
-		lc.Stat.Hit += 1
-	}
-
 	return hit
 }
 
 func (lc *SimpleLRUCache) GetStat() CacheSimulatorStat {
 	return lc.Stat
+}
+
+type LRUCacheWithLookAhead struct {
+	SimpleLRUCache
+}
+
+func NewLRUCacheWithLookAhead(size uint) *LRUCacheWithLookAhead {
+	return &LRUCacheWithLookAhead{*NewSimpleLRUCache(size)}
+}
+
+func (lc *LRUCacheWithLookAhead) IsCached(p *Packet) (bool, *int) {
+	return lc.SimpleLRUCache.IsCached(p)
+}
+
+func (f FiveTuple) SwapSrcAndDst() FiveTuple {
+	return FiveTuple{
+		Proto:   f.Proto,
+		SrcIP:   f.DstIP,
+		DstIP:   f.SrcIP,
+		SrcPort: f.DstPort,
+		DstPort: f.SrcPort,
+	}
+}
+
+func (lc *LRUCacheWithLookAhead) Process(p *Packet) bool {
+	hit := lc.SimpleLRUCache.Process(p)
+
+	if p.Proto == "tcp" {
+		swapped := p.FiveTuple().SwapSrcAndDst()
+
+		if cached, _ := lc.IsCachedWithFiveTuple(swapped); !cached {
+			lc.ReplaceOldestEntryWithFiveTuple(swapped)
+		}
+	}
+
+	return hit
+}
+
+func (lc *LRUCacheWithLookAhead) GetStat() CacheSimulatorStat {
+	return lc.SimpleLRUCache.GetStat()
 }
 
 func main() {
@@ -243,6 +303,7 @@ func main() {
 	reader.Comma = '\t'
 
 	cache := NewSimpleLRUCache(cacheSize)
+	// cache := NewLRUCacheWithLookAhead(cacheSize)
 
 	for i := 0; ; i += 1 {
 		record, err := reader.Read()
@@ -264,6 +325,10 @@ func main() {
 		packet, err := parseCSVRecord(record)
 		if err != nil {
 			panic(err)
+		}
+
+		if packet.FiveTuple() == nil {
+			continue
 		}
 
 		cache.Process(packet)
