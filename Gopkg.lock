@@ -8,21 +8,9 @@
   revision = "df3ce62bc412f7d4de25c813c284993c78eb37a3"
   source = "github.com/kyontan/pcaparser"
 
-[[projects]]
-  branch = "master"
-  name = "github.com/sigurn/crc8"
-  packages = ["."]
-  revision = "e55481d6f45c5a8f040343bace9013571dae103e"
-
-[[projects]]
-  branch = "master"
-  name = "github.com/sigurn/utils"
-  packages = ["."]
-  revision = "f19e41f79f8f006116f682c1af454591bc278ad4"
-
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "db7ffda2abcf4fe3b3fe328ed654f30154818299beb4b053bbf64ab1f9f37fcf"
+  inputs-digest = "5cd80122c50127c1fd0bc602b1279888dc7730d841e4d07c20124e854aa0b506"
   solver-name = "gps-cdcl"
   solver-version = 1

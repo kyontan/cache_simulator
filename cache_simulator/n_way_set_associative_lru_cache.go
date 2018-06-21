@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 
-	"github.com/sigurn/crc8"
+	"hash/crc32"
 )
 
 type NWaySetAssociativeLRUCache struct {
@@ -24,14 +24,9 @@ func (cache *NWaySetAssociativeLRUCache) IsCached(p *Packet, update bool) (bool,
 }
 
 func (cache *NWaySetAssociativeLRUCache) setIdxFromFiveTuple(f *FiveTuple) uint {
-	// TODO: only 8 bit is supported
-	switch cache.Size / cache.Way {
-	case 256:
-		crc_table := crc8.MakeTable(crc8.CRC8)
-		return uint(crc8.Checksum(fiveTupleToBigEndianByteArray(f), crc_table))
-	default:
-		panic("Not implemented!")
-	}
+	maxSetIdx := cache.Size / cache.Way
+	crc := crc32.ChecksumIEEE(fiveTupleToBigEndianByteArray(f))
+	return uint(crc) % maxSetIdx
 }
 
 func (cache *NWaySetAssociativeLRUCache) IsCachedWithFiveTuple(f *FiveTuple, update bool) (bool, *int) {

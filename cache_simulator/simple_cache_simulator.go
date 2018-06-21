@@ -69,8 +69,8 @@ func NewFullAssociativeLRUCacheWithLookAheadSimulator(size uint) *SimpleCacheSim
 }
 
 func NewNWaySetAssociativeLRUCacheSimulator(size uint, way uint) *SimpleCacheSimulator {
-	if !(size == 1024 && way == 4) {
-		panic("Not implemented!")
+	if size%way != 0 {
+		panic("Size must be multiplier of way")
 	}
 
 	sets_size := size / way
@@ -78,10 +78,10 @@ func NewNWaySetAssociativeLRUCacheSimulator(size uint, way uint) *SimpleCacheSim
 
 	for i := uint(0); i < sets_size; i++ {
 		sets[i] = FullAssociativeLRUCache{
-			Entries: make([]FiveTuple, size),
-			Age:     make([]int, size),
-			Refered: make([]int, size),
-			Size:    size,
+			Entries: make([]FiveTuple, way),
+			Age:     make([]int, way),
+			Refered: make([]int, way),
+			Size:    way,
 		}
 	}
 
@@ -103,8 +103,8 @@ func NewNWaySetAssociativeLRUCacheSimulator(size uint, way uint) *SimpleCacheSim
 }
 
 func NewNWaySetAssociativeLRUCacheWithLookAheadSimulator(size uint, way uint) *SimpleCacheSimulator {
-	if !(size == 1024 && way == 4) {
-		panic("Not implemented!")
+	if size%way != 0 {
+		panic("Size must be multiplier of way")
 	}
 
 	sets_size := size / way
@@ -112,10 +112,10 @@ func NewNWaySetAssociativeLRUCacheWithLookAheadSimulator(size uint, way uint) *S
 
 	for i := uint(0); i < sets_size; i++ {
 		sets[i] = FullAssociativeLRUCache{
-			Entries: make([]FiveTuple, size),
-			Age:     make([]int, size),
-			Refered: make([]int, size),
-			Size:    size,
+			Entries: make([]FiveTuple, way),
+			Age:     make([]int, way),
+			Refered: make([]int, way),
+			Size:    way,
 		}
 	}
 
