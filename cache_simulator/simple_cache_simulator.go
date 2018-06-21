@@ -67,3 +67,73 @@ func NewFullAssociativeLRUCacheWithLookAheadSimulator(size uint) *SimpleCacheSim
 		},
 	}
 }
+
+func NewNWaySetAssociativeLRUCacheSimulator(size uint, way uint) *SimpleCacheSimulator {
+	if !(size == 1024 && way == 4) {
+		panic("Not implemented!")
+	}
+
+	sets_size := size / way
+	sets := make([]FullAssociativeLRUCache, sets_size)
+
+	for i := uint(0); i < sets_size; i++ {
+		sets[i] = FullAssociativeLRUCache{
+			Entries: make([]FiveTuple, size),
+			Age:     make([]int, size),
+			Refered: make([]int, size),
+			Size:    size,
+		}
+	}
+
+	cache_sim := SimpleCacheSimulator{
+		Cache: &NWaySetAssociativeLRUCache{
+			Sets: sets,
+			Way:  way,
+			Size: size,
+		},
+		Stat: CacheSimulatorStat{
+			Type:      "N Way Set Associative LRU",
+			Parameter: fmt.Sprintf("Way: %v, Size:%v", way, size),
+			Processed: 0,
+			Hit:       0,
+		},
+	}
+
+	return &cache_sim
+}
+
+func NewNWaySetAssociativeLRUCacheWithLookAheadSimulator(size uint, way uint) *SimpleCacheSimulator {
+	if !(size == 1024 && way == 4) {
+		panic("Not implemented!")
+	}
+
+	sets_size := size / way
+	sets := make([]FullAssociativeLRUCache, sets_size)
+
+	for i := uint(0); i < sets_size; i++ {
+		sets[i] = FullAssociativeLRUCache{
+			Entries: make([]FiveTuple, size),
+			Age:     make([]int, size),
+			Refered: make([]int, size),
+			Size:    size,
+		}
+	}
+
+	cache_sim := SimpleCacheSimulator{
+		Cache: &CacheWithLookAhead{
+			InnerCache: &NWaySetAssociativeLRUCache{
+				Sets: sets,
+				Way:  way,
+				Size: size,
+			},
+		},
+		Stat: CacheSimulatorStat{
+			Type:      "N Way Set Associative LRU with Look-Ahead",
+			Parameter: fmt.Sprintf("Way: %v, Size:%v", way, size),
+			Processed: 0,
+			Hit:       0,
+		},
+	}
+
+	return &cache_sim
+}

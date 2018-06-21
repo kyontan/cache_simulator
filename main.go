@@ -97,8 +97,9 @@ func main() {
 	reader := csv.NewReader(fp)
 	reader.Comma = '\t'
 
-	cacheSim := cache_simulator.NewFullAssociativeLRUCacheSimulator(cacheSize)
+	// cacheSim := cache_simulator.NewFullAssociativeLRUCacheSimulator(cacheSize)
 	// cacheSim := cache_simulator.NewFullAssociativeLRUCacheWithLookAheadSimulator(cacheSize)
+	cacheSim := cache_simulator.NewNWaySetAssociativeLRUCacheSimulator(cacheSize, 4)
 
 	for i := 0; ; i += 1 {
 		record, err := reader.Read()
