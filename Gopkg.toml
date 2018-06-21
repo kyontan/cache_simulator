@@ -19,3 +19,9 @@
 #  name = "github.com/x/y"
 #  version = "2.4.0"
 
+
+[[constraint]]
+  name = "github.com/mervin0502/pcaparser"
+  source = "github.com/kyontan/pcaparser"
+  branch = "develop"
+  # version = "0.1.0"
