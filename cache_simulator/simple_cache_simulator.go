@@ -32,108 +32,79 @@ func (sim *SimpleCacheSimulator) GetStat() CacheSimulatorStat {
 	return sim.Stat
 }
 
+func NewFullAssociativeLRUCache(size uint) *FullAssociativeLRUCache {
+	return &FullAssociativeLRUCache{
+		Entries: make([]FiveTuple, size),
+		Age:     make([]int, size),
+		Refered: make([]int, size),
+		Size:    size,
+	}
+}
+
+func NewNWaySetAssociativeLRUCache(size, way uint) *NWaySetAssociativeLRUCache {
+	if size%way != 0 {
+		panic("Size must be multiplier of way")
+	}
+
+	sets_size := size / way
+	sets := make([]FullAssociativeLRUCache, sets_size)
+
+	for i := uint(0); i < sets_size; i++ {
+		sets[i] = *NewFullAssociativeLRUCache(way)
+	}
+
+	return &NWaySetAssociativeLRUCache{
+		Sets: sets,
+		Way:  way,
+		Size: size,
+	}
+}
+
+func NewCacheSimulatorStat(description, parameter string) CacheSimulatorStat {
+	return CacheSimulatorStat{
+		Type:      description,
+		Parameter: parameter,
+		Processed: 0,
+		Hit:       0,
+	}
+}
+
 func NewFullAssociativeLRUCacheSimulator(size uint) *SimpleCacheSimulator {
 	return &SimpleCacheSimulator{
-		Cache: &FullAssociativeLRUCache{
-			Entries: make([]FiveTuple, size),
-			Age:     make([]int, size),
-			Refered: make([]int, size),
-			Size:    size,
-		},
-		Stat: CacheSimulatorStat{
-			Type:      "LRU",
-			Parameter: fmt.Sprintf("Size:%v", size),
-			Processed: 0,
-			Hit:       0,
-		},
+		Cache: NewFullAssociativeLRUCache(size),
+		Stat: NewCacheSimulatorStat(
+			"Full Associative (LRU)",
+			fmt.Sprintf("Size:%v", size)),
 	}
 }
 
 func NewFullAssociativeLRUCacheWithLookAheadSimulator(size uint) *SimpleCacheSimulator {
 	return &SimpleCacheSimulator{
 		Cache: &CacheWithLookAhead{
-			InnerCache: &FullAssociativeLRUCache{
-				Entries: make([]FiveTuple, size),
-				Age:     make([]int, size),
-				Refered: make([]int, size),
-				Size:    size,
-			},
+			InnerCache: NewFullAssociativeLRUCache(size),
 		},
-		Stat: CacheSimulatorStat{
-			Type:      "LRU with Look-Ahead",
-			Parameter: fmt.Sprintf("Size:%v", size),
-			Processed: 0,
-			Hit:       0,
-		},
+		Stat: NewCacheSimulatorStat(
+			"Full Associative (LRU with Look-Ahead)",
+			fmt.Sprintf("Size:%v", size)),
 	}
 }
 
-func NewNWaySetAssociativeLRUCacheSimulator(size uint, way uint) *SimpleCacheSimulator {
-	if size%way != 0 {
-		panic("Size must be multiplier of way")
+func NewNWaySetAssociativeLRUCacheSimulator(size, way uint) *SimpleCacheSimulator {
+	return &SimpleCacheSimulator{
+		Cache: NewNWaySetAssociativeLRUCache(size, way),
+		Stat: NewCacheSimulatorStat(
+			"N Way Set Associative (LRU)",
+			fmt.Sprintf("Way: %v, Size:%v", way, size)),
 	}
-
-	sets_size := size / way
-	sets := make([]FullAssociativeLRUCache, sets_size)
-
-	for i := uint(0); i < sets_size; i++ {
-		sets[i] = FullAssociativeLRUCache{
-			Entries: make([]FiveTuple, way),
-			Age:     make([]int, way),
-			Refered: make([]int, way),
-			Size:    way,
-		}
-	}
-
-	cache_sim := SimpleCacheSimulator{
-		Cache: &NWaySetAssociativeLRUCache{
-			Sets: sets,
-			Way:  way,
-			Size: size,
-		},
-		Stat: CacheSimulatorStat{
-			Type:      "N Way Set Associative LRU",
-			Parameter: fmt.Sprintf("Way: %v, Size:%v", way, size),
-			Processed: 0,
-			Hit:       0,
-		},
-	}
-
-	return &cache_sim
 }
 
-func NewNWaySetAssociativeLRUCacheWithLookAheadSimulator(size uint, way uint) *SimpleCacheSimulator {
-	if size%way != 0 {
-		panic("Size must be multiplier of way")
-	}
-
-	sets_size := size / way
-	sets := make([]FullAssociativeLRUCache, sets_size)
-
-	for i := uint(0); i < sets_size; i++ {
-		sets[i] = FullAssociativeLRUCache{
-			Entries: make([]FiveTuple, way),
-			Age:     make([]int, way),
-			Refered: make([]int, way),
-			Size:    way,
-		}
-	}
-
-	cache_sim := SimpleCacheSimulator{
+func NewNWaySetAssociativeLRUCacheWithLookAheadSimulator(size, way uint) *SimpleCacheSimulator {
+	return &SimpleCacheSimulator{
 		Cache: &CacheWithLookAhead{
-			InnerCache: &NWaySetAssociativeLRUCache{
-				Sets: sets,
-				Way:  way,
-				Size: size,
-			},
+			InnerCache: NewNWaySetAssociativeLRUCache(size, way),
 		},
-		Stat: CacheSimulatorStat{
-			Type:      "N Way Set Associative LRU with Look-Ahead",
-			Parameter: fmt.Sprintf("Way: %v, Size:%v", way, size),
-			Processed: 0,
-			Hit:       0,
-		},
+		Stat: NewCacheSimulatorStat(
+			"N Way Set Associative (LRU with Look-Ahead)",
+			fmt.Sprintf("Way: %v, Size:%v", way, size)),
 	}
-
-	return &cache_sim
 }
