@@ -34,13 +34,9 @@ func (cache *NWaySetAssociativeLRUCache) IsCachedWithFiveTuple(f *FiveTuple, upd
 	return cache.Sets[setIdx].IsCachedWithFiveTuple(f, update) // TODO: return meaningful value
 }
 
-func (cache *NWaySetAssociativeLRUCache) Cache(p *Packet) {
-	cache.CacheFiveTuple(p.FiveTuple())
-}
-
-func (cache *NWaySetAssociativeLRUCache) CacheFiveTuple(f *FiveTuple) {
+func (cache *NWaySetAssociativeLRUCache) CacheFiveTuple(f *FiveTuple) []*FiveTuple {
 	setIdx := cache.setIdxFromFiveTuple(f)
-	cache.Sets[setIdx].CacheFiveTuple(f)
+	return cache.Sets[setIdx].CacheFiveTuple(f)
 }
 
 func (cache *NWaySetAssociativeLRUCache) Clear() {

@@ -17,7 +17,7 @@ func (sim *SimpleCacheSimulator) Process(p *Packet) bool {
 		sim.Stat.Hit += 1
 	} else {
 		// replace cache entry if not hit
-		sim.Cache.Cache(p)
+		sim.Cache.CacheFiveTuple(p.FiveTuple())
 	}
 
 	// fmt.Println(falc.Cache)

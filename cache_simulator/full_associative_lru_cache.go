@@ -35,11 +35,7 @@ func (cache *FullAssociativeLRUCache) IsCachedWithFiveTuple(f *FiveTuple, update
 	return hit, hitIdx
 }
 
-func (cache *FullAssociativeLRUCache) Cache(p *Packet) {
-	cache.CacheFiveTuple(p.FiveTuple())
-}
-
-func (cache *FullAssociativeLRUCache) CacheFiveTuple(f *FiveTuple) {
+func (cache *FullAssociativeLRUCache) CacheFiveTuple(f *FiveTuple) []*FiveTuple {
 	oldestAge := -1
 	oldestAgeIdx := -1
 	for i, age := range cache.Age {
@@ -49,10 +45,18 @@ func (cache *FullAssociativeLRUCache) CacheFiveTuple(f *FiveTuple) {
 		}
 	}
 
+	fiveTupleToReplace := cache.Entries[oldestAgeIdx]
+
 	// fmt.Printf("Replace cache entry idx:%v, age:%v, refered:%v, entry:%v\n", oldestAgeIdx, oldestAge, cache.Refered[oldestAgeIdx], cache.Cache[oldestAgeIdx])
 	cache.Entries[oldestAgeIdx] = *f
 	cache.Age[oldestAgeIdx] = 0
 	cache.Refered[oldestAgeIdx] = 0
+
+	if fiveTupleToReplace == (FiveTuple{}) {
+		return []*FiveTuple{}
+	}
+
+	return []*FiveTuple{&fiveTupleToReplace}
 }
 
 func (cache *FullAssociativeLRUCache) Clear() {
