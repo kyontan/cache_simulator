@@ -132,9 +132,9 @@ func main() {
 		// fmt.Printf("%+v\n", packet.FiveTuple())
 		// fmt.Println(time, len, proto, srcIP, srcPort, dstIP, dstPort, icmpCode, icmpType)
 		if cacheSim.GetStat().Processed%10000 == 0 {
-			fmt.Println(cacheSim.GetStat())
+			fmt.Printf("%v, %v\n", cacheSim.GetStat(), cacheSim.Cache.StatString())
 		}
 	}
 
-	fmt.Println(cacheSim.GetStat())
+	fmt.Printf("%v, %v\n", cacheSim.GetStat(), cacheSim.Cache.StatString())
 }

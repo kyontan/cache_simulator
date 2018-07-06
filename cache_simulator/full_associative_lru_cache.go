@@ -7,6 +7,10 @@ type FullAssociativeLRUCache struct {
 	Size    uint
 }
 
+func (cache *FullAssociativeLRUCache) StatString() string {
+	return ""
+}
+
 func (cache *FullAssociativeLRUCache) IsCached(p *Packet, update bool) (bool, *int) {
 	return cache.IsCachedWithFiveTuple(p.FiveTuple(), update)
 }

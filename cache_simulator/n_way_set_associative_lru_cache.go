@@ -19,6 +19,10 @@ func fiveTupleToBigEndianByteArray(f *FiveTuple) []byte {
 	return buf.Bytes()
 }
 
+func (cache *NWaySetAssociativeLRUCache) StatString() string {
+	return ""
+}
+
 func (cache *NWaySetAssociativeLRUCache) IsCached(p *Packet, update bool) (bool, *int) {
 	return cache.IsCachedWithFiveTuple(p.FiveTuple(), update)
 }

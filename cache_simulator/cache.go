@@ -6,6 +6,7 @@ type Cache interface {
 	// Cache(p *Packet) []*Packet
 	CacheFiveTuple(f *FiveTuple) []*FiveTuple
 	Clear()
+	StatString() string
 }
 
 func AccessCache(c Cache, p *Packet) bool {
