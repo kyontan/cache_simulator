@@ -12,6 +12,31 @@ const (
 	WriteBackExclusive
 )
 
+func (cp *CachePolicy) String() string {
+	switch *cp {
+	case WriteThrough:
+		return "WriteThrough"
+	case WriteBackInclusive:
+		return "WriteBackInclusive"
+	case WriteBackExclusive:
+		return "WriteBackExclusive"
+	default:
+		panic(fmt.Sprintf("Unknown cachePolicy value: %x", *cp))
+	}
+}
+
+func StringToCachePolicy(s string) CachePolicy {
+	switch s {
+	case "WriteThrough":
+		return WriteThrough
+	case "WriteBackInclusive":
+		return WriteBackInclusive
+	case "WriteBackExclusive":
+		return WriteBackExclusive
+	default:
+		panic(fmt.Sprintf("Unknown cachePolicy from string: %x", s))
+	}
+}
 
 type MultiLayerCache struct {
 	CacheLayers          []Cache
@@ -113,4 +138,40 @@ func (c *MultiLayerCache) Clear() {
 	for _, cache := range c.CacheLayers {
 		cache.Clear()
 	}
+}
+
+func (c *MultiLayerCache) Description() string {
+	str := "MultiLayerCache["
+	for i, cacheLayer := range c.CacheLayers {
+		if i != 0 {
+			str += ", "
+		}
+		str += cacheLayer.Description()
+	}
+	str += "]"
+	return str
+}
+
+func (c *MultiLayerCache) ParameterString() string {
+	// [{Size: 2, CachePolicy: Hoge}, {}]
+	str := "["
+
+	for i, cacheLayer := range c.CacheLayers {
+		if i != 0 {
+			str += ", "
+		}
+
+		layerParameterStr := cacheLayer.ParameterString()
+
+		if i != (len(c.CacheLayers) - 1) {
+			if layerParameterStr != "" {
+				layerParameterStr += ", "
+			}
+			layerParameterStr += "CachePolicy: " + c.CachePolicies[i].String()
+		}
+		str += "{" + layerParameterStr + "}"
+	}
+
+	str += "]"
+	return str
 }

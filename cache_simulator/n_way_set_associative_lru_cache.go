@@ -3,6 +3,7 @@ package cache_simulator
 import (
 	"bytes"
 	"encoding/binary"
+	"fmt"
 
 	"hash/crc32"
 )
@@ -50,4 +51,12 @@ func (cache *NWaySetAssociativeLRUCache) InvalidateFiveTuple(f *FiveTuple) {
 
 func (cache *NWaySetAssociativeLRUCache) Clear() {
 	panic("Not implemented")
+}
+
+func (cache *NWaySetAssociativeLRUCache) Description() string {
+	return "NWaySetAssociativeLRUCache"
+}
+
+func (cache *NWaySetAssociativeLRUCache) ParameterString() string {
+	return fmt.Sprintf("Way: %d, Size: %d", cache.Way, cache.Size)
 }

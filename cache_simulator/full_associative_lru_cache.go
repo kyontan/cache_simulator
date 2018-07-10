@@ -1,5 +1,9 @@
 package cache_simulator
 
+import (
+	"fmt"
+)
+
 type FullAssociativeLRUCache struct {
 	Entries []FiveTuple
 	Age     []int
@@ -93,4 +97,12 @@ func (cache *FullAssociativeLRUCache) InvalidateFiveTuple(f *FiveTuple) {
 
 func (cache *FullAssociativeLRUCache) Clear() {
 	panic("Not implemented")
+}
+
+func (cache *FullAssociativeLRUCache) Description() string {
+	return "FullAssociativeLRUCache"
+}
+
+func (cache *FullAssociativeLRUCache) ParameterString() string {
+	return fmt.Sprintf("Size: %d", cache.Size)
 }

@@ -8,6 +8,9 @@ type Cache interface {
 	InvalidateFiveTuple(f *FiveTuple)
 	Clear()
 	StatString() string
+
+	Description() string
+	ParameterString() string
 }
 
 func AccessCache(c Cache, p *Packet) bool {

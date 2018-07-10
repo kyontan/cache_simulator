@@ -2,15 +2,27 @@
 
 
 [[projects]]
+  name = "github.com/koron/go-dproxy"
+  packages = ["."]
+  revision = "009e1192eaace40a885c5b93c37613b3cae820d6"
+  version = "v1.1"
+
+[[projects]]
   branch = "develop"
   name = "github.com/mervin0502/pcaparser"
   packages = ["."]
   revision = "df3ce62bc412f7d4de25c813c284993c78eb37a3"
   source = "github.com/kyontan/pcaparser"
 
+[[projects]]
+  name = "github.com/yosuke-furukawa/json5"
+  packages = ["encoding/json5"]
+  revision = "7f7ea50b836ee7a78dbcccfb28bea909cf28bf6b"
+  version = "v0.1.1"
+
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "5cd80122c50127c1fd0bc602b1279888dc7730d841e4d07c20124e854aa0b506"
+  inputs-digest = "0d3de5e3a86b8096227a4aee6bf9b54b538679a605dd22aef4d5a6743aef38a8"
   solver-name = "gps-cdcl"
   solver-version = 1

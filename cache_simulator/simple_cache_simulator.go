@@ -2,6 +2,8 @@ package cache_simulator
 
 import (
 	"fmt"
+
+	"github.com/koron/go-dproxy"
 )
 
 type SimpleCacheSimulator struct {
@@ -69,84 +71,115 @@ func NewCacheSimulatorStat(description, parameter string) CacheSimulatorStat {
 	}
 }
 
-func NewFullAssociativeLRUCacheSimulator(size uint) *SimpleCacheSimulator {
-	return &SimpleCacheSimulator{
-		Cache: NewFullAssociativeLRUCache(size),
-		Stat: NewCacheSimulatorStat(
-			"Full Associative (LRU)",
-			fmt.Sprintf("Size:%v", size)),
+func buildCache(p dproxy.Proxy) (Cache, error) {
+	cache_type, err := p.M("Type").String()
+
+	if err != nil {
+		return nil, err
 	}
+
+	var cache Cache
+
+	switch cache_type {
+	case "CacheWithLookAhead":
+		innerCache, err := buildCache(p.M("InnerCache"))
+		if err != nil {
+			return cache, err
+		}
+
+		cache = &CacheWithLookAhead{
+			InnerCache: innerCache,
+		}
+	case "FullAssociativeLRUCache":
+		size, err := p.M("Size").Int64()
+		if err != nil {
+			return cache, err
+		}
+
+		cache = NewFullAssociativeLRUCache(uint(size))
+	case "NWaySetAssociativeLRUCache":
+		size, err := p.M("Size").Int64()
+		if err != nil {
+			return cache, err
+		}
+
+		way, err := p.M("Way").Int64()
+		if err != nil {
+			return cache, err
+		}
+
+		cache = NewNWaySetAssociativeLRUCache(uint(size), uint(way))
+	case "MultiLayerCache":
+		cacheLayersPS := p.M("CacheLayers").ProxySet()
+		cachePoliciesPS := p.M("CachePolicies").ProxySet()
+		cacheLayersLen := cacheLayersPS.Len()
+		cachePoliciesLen := cachePoliciesPS.Len()
+
+		if cachePoliciesLen != (cacheLayersLen - 1) {
+			return cache, fmt.Errorf("`CachePolicies` (%d items) must have `CacheLayers` length - 1 (%d) items", cachePoliciesLen, cacheLayersLen-1)
+		}
+
+		cacheLayers := make([]Cache, cacheLayersLen)
+		for i := 0; i < cacheLayersLen; i++ {
+			cacheLayer, err := buildCache(cacheLayersPS.A(i))
+			if err != nil {
+				return cache, err
+			}
+			cacheLayers[i] = cacheLayer
+		}
+
+		cachePolicies := make([]CachePolicy, cachePoliciesLen)
+		for i := 0; i < cachePoliciesLen; i++ {
+			cachePolicyStr, err := cachePoliciesPS.A(i).String()
+			if err != nil {
+				return cache, err
+			}
+
+			cachePolicies[i] = StringToCachePolicy(cachePolicyStr)
+		}
+
+		cache = &MultiLayerCache{
+			CacheLayers:          cacheLayers,
+			CachePolicies:        cachePolicies,
+			CacheReferedByLayer:  make([]uint, cacheLayersLen),
+			CacheReplacedByLayer: make([]uint, cacheLayersLen),
+			CacheHitByLayer:      make([]uint, cacheLayersLen),
+		}
+	default:
+		return nil, fmt.Errorf("Unsupported cache type: %s", cache_type)
+	}
+
+	return cache, nil
 }
 
-func NewFullAssociativeLRUCacheWithLookAheadSimulator(size uint) *SimpleCacheSimulator {
-	return &SimpleCacheSimulator{
-		Cache: &CacheWithLookAhead{
-			InnerCache: NewFullAssociativeLRUCache(size),
-		},
-		Stat: NewCacheSimulatorStat(
-			"Full Associative (LRU with Look-Ahead)",
-			fmt.Sprintf("Size:%v", size)),
-	}
-}
+func BuildSimpleCacheSimulator(json interface{}) (SimpleCacheSimulator, error) {
+	p := dproxy.New(json)
 
-func NewNWaySetAssociativeLRUCacheSimulator(size, way uint) *SimpleCacheSimulator {
-	return &SimpleCacheSimulator{
-		Cache: NewNWaySetAssociativeLRUCache(size, way),
-		Stat: NewCacheSimulatorStat(
-			"N Way Set Associative (LRU)",
-			fmt.Sprintf("Way: %v, Size:%v", way, size)),
-	}
-}
+	simType, err := p.M("Type").String()
 
-func NewNWaySetAssociativeLRUCacheWithLookAheadSimulator(size, way uint) *SimpleCacheSimulator {
-	return &SimpleCacheSimulator{
-		Cache: &CacheWithLookAhead{
-			InnerCache: NewNWaySetAssociativeLRUCache(size, way),
-		},
-		Stat: NewCacheSimulatorStat(
-			"N Way Set Associative (LRU with Look-Ahead)",
-			fmt.Sprintf("Way: %v, Size:%v", way, size)),
+	if err != nil {
+		return SimpleCacheSimulator{}, err
 	}
-}
 
-func NewDoubleLayerCacheWithFullAssociativeAndNwayCacheSimulator(sizeOfFirstLayer, sizeOfSecondLayer, way uint) *SimpleCacheSimulator {
-	return &SimpleCacheSimulator{
-		Cache: &MultiLayerCache{
-			CacheLayers: []Cache{
-				NewFullAssociativeLRUCache(sizeOfFirstLayer),
-				NewNWaySetAssociativeLRUCache(sizeOfSecondLayer, way),
-			},
-			CacheWritePolicies: []CacheWritePolicy{
-				WriteBack,
-			},
-			CacheReferedByLayer:  []uint{0, 0},
-			CacheReplacedByLayer: []uint{0, 0},
-			CacheHitByLayer:      []uint{0, 0},
-		},
-		Stat: NewCacheSimulatorStat(
-			"MultiLayerCache[Full Associative (LRU), N Way Set Associative (LRU)]",
-			fmt.Sprintf("Way: %v, Size: [%v, %v]", way, sizeOfFirstLayer, sizeOfSecondLayer)),
+	if simType != "SimpleCacheSimulator" {
+		return SimpleCacheSimulator{}, fmt.Errorf("Unsupported simulator type: %s", simType)
 	}
-}
 
-func NewDoubleLayerCacheWithFullAssociativeWithLookAheadAndNwayCacheSimulator(sizeOfFirstLayer, sizeOfSecondLayer, way uint) *SimpleCacheSimulator {
-	return &SimpleCacheSimulator{
-		Cache: &MultiLayerCache{
-			CacheLayers: []Cache{
-				&CacheWithLookAhead{
-					InnerCache: NewFullAssociativeLRUCache(sizeOfFirstLayer),
-				},
-				NewNWaySetAssociativeLRUCache(sizeOfSecondLayer, way),
-			},
-			CacheWritePolicies: []CacheWritePolicy{
-				WriteBack,
-			},
-			CacheReferedByLayer:  []uint{0, 0},
-			CacheReplacedByLayer: []uint{0, 0},
-			CacheHitByLayer:      []uint{0, 0},
-		},
-		Stat: NewCacheSimulatorStat(
-			"MultiLayerCache[Full Associative (LRU with Look-Ahead), N Way Set Associative (LRU)]",
-			fmt.Sprintf("Way: %v, Size: [%v, %v]", way, sizeOfFirstLayer, sizeOfSecondLayer)),
+	cacheProxy := p.M("Cache")
+
+	cache, err := buildCache(cacheProxy)
+
+	if err != nil {
+		return SimpleCacheSimulator{}, err
 	}
+
+	sim := SimpleCacheSimulator{
+		Cache: cache,
+		Stat: NewCacheSimulatorStat(
+			cache.Description(),
+			cache.ParameterString(),
+		),
+	}
+
+	return sim, nil
 }

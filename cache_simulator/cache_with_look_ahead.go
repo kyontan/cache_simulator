@@ -42,3 +42,11 @@ func (c *CacheWithLookAhead) InvalidateFiveTuple(f *FiveTuple) {
 func (c *CacheWithLookAhead) Clear() {
 	c.InnerCache.Clear()
 }
+
+func (c *CacheWithLookAhead) Description() string {
+	return "CacheWithLookAhead[" + c.InnerCache.Description() + "]"
+}
+
+func (c *CacheWithLookAhead) ParameterString() string {
+	return "[" + c.InnerCache.ParameterString() + "]"
+}

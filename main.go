@@ -5,10 +5,13 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"net"
 	"os"
 	"reflect"
 	"strconv"
+
+	"github.com/yosuke-furukawa/json5/encoding/json5"
 
 	"routing_simulator/cache_simulator"
 )
@@ -66,40 +69,9 @@ func parseCSVRecord(record []string) (*cache_simulator.Packet, error) {
 	return packet, nil
 }
 
-func main() {
-	var fp *os.File
-	var err error
-
-	if len(os.Args) < 2 {
-		fmt.Printf("%s cacheSize [tsv]\n", os.Args[0])
-		os.Exit(1)
-	}
-
-	var cacheSize uint
-	if cacheSizeInt, err := strconv.ParseInt(os.Args[1], 10, 64); err != nil {
-		fmt.Println("Can't parse", os.Args[1], "as integer cacheSize, aborting")
-		os.Exit(1)
-	} else {
-		cacheSize = uint(cacheSizeInt)
-	}
-
-	if len(os.Args) != 3 {
-		fp = os.Stdin
-	} else {
-		fp, err = os.Open(os.Args[2])
-
-		if err != nil {
-			panic(err)
-		}
-		defer fp.Close()
-	}
-
+func runSimpleCacheSimulatorWithCSV(fp *os.File, sim *cache_simulator.SimpleCacheSimulator, printInterval int) {
 	reader := csv.NewReader(fp)
 	reader.Comma = '\t'
-
-	// cacheSim := cache_simulator.NewFullAssociativeLRUCacheSimulator(cacheSize)
-	// cacheSim := cache_simulator.NewFullAssociativeLRUCacheWithLookAheadSimulator(cacheSize)
-	cacheSim := cache_simulator.NewNWaySetAssociativeLRUCacheSimulator(cacheSize, 4)
 
 	for i := 0; ; i += 1 {
 		record, err := reader.Read()
@@ -127,14 +99,58 @@ func main() {
 			continue
 		}
 
-		cacheSim.Process(packet)
+		sim.Process(packet)
 		// fmt.Printf("Process packet %v, hit: %v\n", packet, hit)
 		// fmt.Printf("%+v\n", packet.FiveTuple())
 		// fmt.Println(time, len, proto, srcIP, srcPort, dstIP, dstPort, icmpCode, icmpType)
-		if cacheSim.GetStat().Processed%10000 == 0 {
-			fmt.Printf("%v, %v\n", cacheSim.GetStat(), cacheSim.Cache.StatString())
+		if sim.GetStat().Processed%printInterval == 0 {
+			fmt.Printf("%v, %v\n", sim.GetStat(), sim.Cache.StatString())
 		}
 	}
+}
+
+func main() {
+
+	if len(os.Args) != 2 && len(os.Args) != 3 {
+		fmt.Printf("%s cacheparam [tsv]\n", os.Args[0])
+		os.Exit(1)
+	}
+
+	simulaterDefinitionBytes, err := ioutil.ReadFile(os.Args[1])
+	if err != nil {
+		panic(err)
+	}
+
+	var simlatorDefinition interface{}
+	err = json5.Unmarshal(simulaterDefinitionBytes, &simlatorDefinition)
+	if err != nil {
+		panic(err)
+	}
+
+	cacheSim, err := cache_simulator.BuildSimpleCacheSimulator(simlatorDefinition)
+
+	if err != nil {
+		panic(err)
+	}
+
+	fmt.Println(cacheSim.Cache.Description())
+	fmt.Println(cacheSim.Cache.ParameterString())
+
+	var fpCSV *os.File
+
+	if len(os.Args) == 2 {
+		fpCSV = os.Stdin
+	} else {
+		var err error
+		fpCSV, err = os.Open(os.Args[2])
+
+		if err != nil {
+			panic(err)
+		}
+		defer fpCSV.Close()
+	}
+
+	runSimpleCacheSimulatorWithCSV(fpCSV, &cacheSim, 1)
 
 	fmt.Printf("%v, %v\n", cacheSim.GetStat(), cacheSim.Cache.StatString())
 }
