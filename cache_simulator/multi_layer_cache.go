@@ -4,27 +4,21 @@ import (
 	"fmt"
 )
 
-type CacheWritePolicy int
-type CacheInclusionPolicy int
+type CachePolicy int
 
 const (
-	WriteThrough CacheWritePolicy = iota
-	WriteBack
-	// WriteAround
+	WriteThrough CachePolicy = iota
+	WriteBackInclusive
+	WriteBackExclusive
 )
 
-const (
-	Inclusive CacheInclusionPolicy = iota
-	Exclusive
-)
 
 type MultiLayerCache struct {
-	CacheLayers            []Cache
-	CacheWritePolicies     []CacheWritePolicy
-	CacheInclusionPolicies []CacheInclusionPolicy
-	CacheReferedByLayer    []uint
-	CacheReplacedByLayer   []uint
-	CacheHitByLayer        []uint
+	CacheLayers          []Cache
+	CachePolicies        []CachePolicy
+	CacheReferedByLayer  []uint
+	CacheReplacedByLayer []uint
+	CacheHitByLayer      []uint
 }
 
 func (c *MultiLayerCache) StatString() string {
@@ -36,40 +30,68 @@ func (c *MultiLayerCache) IsCached(p *Packet, update bool) (bool, *int) {
 }
 
 func (c *MultiLayerCache) IsCachedWithFiveTuple(f *FiveTuple, update bool) (bool, *int) {
+	hit := false
+	var hitLayerIdx *int
+
 	for i, cache := range c.CacheLayers {
 		if update {
 			c.CacheReferedByLayer[i] += 1
 		}
-		if hit, hitIdx := cache.IsCachedWithFiveTuple(f, update); hit {
+		if hitLayer, _ := cache.IsCachedWithFiveTuple(f, update); hitLayer {
 			if update {
 				c.CacheHitByLayer[i] += 1
 			}
-			return hit, hitIdx
+			hit = true
+			hitLayerIdx = &i
+			break
 		}
 	}
 
-	return false, nil
+	// cache miss at least L1 (layerIdx == 0)
+	if update && hitLayerIdx != nil && *hitLayerIdx != 0 {
+		// cache one layer upper, and then cache one more upper cache, ...
+		// for i := *hitLayerIdx - 1; 0 <= i; i-- {
+		// 	if c.CachePolicies[i] == WriteBackExclusive {
+		// 		// invalidate under layer
+		// 		c.CacheLayers[i+1].InvalidateFiveTuple(f)
+		// 	}
+
+		// 	// cache upper layer
+		// 	c.CacheFiveTupleToLayer(f, i)
+		// }
+
+		// cache upper-most layer
+		if c.CachePolicies[*hitLayerIdx-1] == WriteBackExclusive {
+			// invalidate under layer
+			c.CacheLayers[*hitLayerIdx].InvalidateFiveTuple(f)
+		}
+
+		c.CacheFiveTuple(f)
+	}
+
+	return hit, hitLayerIdx
 }
 
-func (c *MultiLayerCache) CacheFiveTuple(f *FiveTuple) []*FiveTuple {
+func (c *MultiLayerCache) CacheFiveTupleToLayer(f *FiveTuple, layerIdx int) []*FiveTuple {
 	fiveTuplesToCache := []*FiveTuple{f}
-	evictedFiveTuples := []*FiveTuple{f}
+	evictedFiveTuples := []*FiveTuple{}
 
-	for i, cache := range c.CacheLayers {
+	for i, cache := range c.CacheLayers[layerIdx:] {
 		fiveTuplesToCacheNextLayer := []*FiveTuple{}
 
 		for _, f := range fiveTuplesToCache {
 			evictedFiveTuples = cache.CacheFiveTuple(f)
 			c.CacheReplacedByLayer[i] += uint(len(evictedFiveTuples))
 
-			if (i + 1) == len(c.CacheLayers) {
+			if i == (len(c.CacheLayers) - 1) {
 				continue
 			}
 
-			switch c.CacheWritePolicies[i] {
-			case WriteBack:
+			switch c.CachePolicies[i] {
+			case WriteBackExclusive, WriteBackInclusive:
 				fiveTuplesToCacheNextLayer = append(fiveTuplesToCacheNextLayer, evictedFiveTuples...)
 			case WriteThrough:
+				fiveTuplesToCacheNextLayer = fiveTuplesToCache
 			}
 		}
 
@@ -77,6 +99,10 @@ func (c *MultiLayerCache) CacheFiveTuple(f *FiveTuple) []*FiveTuple {
 	}
 
 	return evictedFiveTuples
+}
+
+func (c *MultiLayerCache) CacheFiveTuple(f *FiveTuple) []*FiveTuple {
+	return c.CacheFiveTupleToLayer(f, 0)
 }
 
 func (c *MultiLayerCache) InvalidateFiveTuple(f *FiveTuple) {
