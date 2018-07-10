@@ -108,3 +108,45 @@ func NewNWaySetAssociativeLRUCacheWithLookAheadSimulator(size, way uint) *Simple
 			fmt.Sprintf("Way: %v, Size:%v", way, size)),
 	}
 }
+
+func NewDoubleLayerCacheWithFullAssociativeAndNwayCacheSimulator(sizeOfFirstLayer, sizeOfSecondLayer, way uint) *SimpleCacheSimulator {
+	return &SimpleCacheSimulator{
+		Cache: &MultiLayerCache{
+			CacheLayers: []Cache{
+				NewFullAssociativeLRUCache(sizeOfFirstLayer),
+				NewNWaySetAssociativeLRUCache(sizeOfSecondLayer, way),
+			},
+			CacheWritePolicies: []CacheWritePolicy{
+				WriteBack,
+			},
+			CacheReferedByLayer:  []uint{0, 0},
+			CacheReplacedByLayer: []uint{0, 0},
+			CacheHitByLayer:      []uint{0, 0},
+		},
+		Stat: NewCacheSimulatorStat(
+			"MultiLayerCache[Full Associative (LRU), N Way Set Associative (LRU)]",
+			fmt.Sprintf("Way: %v, Size: [%v, %v]", way, sizeOfFirstLayer, sizeOfSecondLayer)),
+	}
+}
+
+func NewDoubleLayerCacheWithFullAssociativeWithLookAheadAndNwayCacheSimulator(sizeOfFirstLayer, sizeOfSecondLayer, way uint) *SimpleCacheSimulator {
+	return &SimpleCacheSimulator{
+		Cache: &MultiLayerCache{
+			CacheLayers: []Cache{
+				&CacheWithLookAhead{
+					InnerCache: NewFullAssociativeLRUCache(sizeOfFirstLayer),
+				},
+				NewNWaySetAssociativeLRUCache(sizeOfSecondLayer, way),
+			},
+			CacheWritePolicies: []CacheWritePolicy{
+				WriteBack,
+			},
+			CacheReferedByLayer:  []uint{0, 0},
+			CacheReplacedByLayer: []uint{0, 0},
+			CacheHitByLayer:      []uint{0, 0},
+		},
+		Stat: NewCacheSimulatorStat(
+			"MultiLayerCache[Full Associative (LRU with Look-Ahead), N Way Set Associative (LRU)]",
+			fmt.Sprintf("Way: %v, Size: [%v, %v]", way, sizeOfFirstLayer, sizeOfSecondLayer)),
+	}
+}
