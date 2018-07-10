@@ -79,6 +79,10 @@ func (c *MultiLayerCache) CacheFiveTuple(f *FiveTuple) []*FiveTuple {
 	return evictedFiveTuples
 }
 
+func (c *MultiLayerCache) InvalidateFiveTuple(f *FiveTuple) {
+	panic("not implemented")
+}
+
 func (c *MultiLayerCache) Clear() {
 	for _, cache := range c.CacheLayers {
 		cache.Clear()

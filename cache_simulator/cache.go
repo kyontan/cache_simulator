@@ -5,6 +5,7 @@ type Cache interface {
 	IsCachedWithFiveTuple(f *FiveTuple, update bool) (bool, *int)
 	// Cache(p *Packet) []*Packet
 	CacheFiveTuple(f *FiveTuple) []*FiveTuple
+	InvalidateFiveTuple(f *FiveTuple)
 	Clear()
 	StatString() string
 }

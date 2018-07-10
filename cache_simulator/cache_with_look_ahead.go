@@ -35,6 +35,10 @@ func (c *CacheWithLookAhead) CacheFiveTuple(f *FiveTuple) []*FiveTuple {
 	return evictedFiveTuples
 }
 
+func (c *CacheWithLookAhead) InvalidateFiveTuple(f *FiveTuple) {
+	c.InnerCache.InvalidateFiveTuple(f)
+}
+
 func (c *CacheWithLookAhead) Clear() {
 	c.InnerCache.Clear()
 }

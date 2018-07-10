@@ -63,6 +63,25 @@ func (cache *FullAssociativeLRUCache) CacheFiveTuple(f *FiveTuple) []*FiveTuple 
 	return []*FiveTuple{&fiveTupleToReplace}
 }
 
+func (cache *FullAssociativeLRUCache) InvalidateFiveTuple(f *FiveTuple) {
+	var hitIdx *int
+
+	for i, cacheEntry := range cache.Entries {
+		if cacheEntry == *f {
+			hitIdx = &i
+			break
+		}
+	}
+
+	if hitIdx == nil {
+		panic("entry not cached")
+	}
+
+	cache.Entries[*hitIdx] = FiveTuple{}
+	cache.Age[*hitIdx] = 0
+	cache.Refered[*hitIdx] = 0
+}
+
 func (cache *FullAssociativeLRUCache) Clear() {
 	panic("Not implemented")
 }

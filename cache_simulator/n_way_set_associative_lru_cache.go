@@ -43,6 +43,11 @@ func (cache *NWaySetAssociativeLRUCache) CacheFiveTuple(f *FiveTuple) []*FiveTup
 	return cache.Sets[setIdx].CacheFiveTuple(f)
 }
 
+func (cache *NWaySetAssociativeLRUCache) InvalidateFiveTuple(f *FiveTuple) {
+	setIdx := cache.setIdxFromFiveTuple(f)
+	cache.Sets[setIdx].InvalidateFiveTuple(f)
+}
+
 func (cache *NWaySetAssociativeLRUCache) Clear() {
 	panic("Not implemented")
 }
