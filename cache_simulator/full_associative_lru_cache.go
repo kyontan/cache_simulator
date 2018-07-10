@@ -40,9 +40,18 @@ func (cache *FullAssociativeLRUCache) IsCachedWithFiveTuple(f *FiveTuple, update
 }
 
 func (cache *FullAssociativeLRUCache) CacheFiveTuple(f *FiveTuple) []*FiveTuple {
+	for i, _ := range cache.Entries {
+		cache.Age[i] += 1
+	}
+
 	oldestAge := -1
 	oldestAgeIdx := -1
 	for i, age := range cache.Age {
+		if cache.Entries[i] == (FiveTuple{}) {
+			oldestAgeIdx = i
+			break
+		}
+
 		if oldestAge < age {
 			oldestAge = age
 			oldestAgeIdx = i
