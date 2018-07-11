@@ -1,14 +1,21 @@
 package cache_simulator
 
 import (
+	"container/list"
 	"fmt"
 )
 
 type FullAssociativeLRUCache struct {
-	Entries []FiveTuple
-	Age     []int
+	Entries []*list.Element
 	Refered []int
 	Size    uint
+
+	evictList *list.List
+}
+
+type entry struct {
+	Index     int
+	FiveTuple FiveTuple
 }
 
 func (cache *FullAssociativeLRUCache) StatString() string {
@@ -21,78 +28,70 @@ func (cache *FullAssociativeLRUCache) IsCached(p *Packet, update bool) (bool, *i
 
 func (cache *FullAssociativeLRUCache) IsCachedWithFiveTuple(f *FiveTuple, update bool) (bool, *int) {
 	hit := false
+	var hitElem *list.Element
 	var hitIdx *int
 
-	for i, cacheEntry := range cache.Entries {
+	for i, elem := range cache.Entries {
+		cacheEntry := elem.Value.(entry).FiveTuple
 		if cacheEntry == *f {
 			hit = true
+			hitElem = elem
 			hitIdx = &i
 			break
 		}
 	}
 
 	if hit && update {
-		for i, _ := range cache.Entries {
-			cache.Age[i] += 1
-		}
-
+		cache.evictList.MoveToFront(hitElem)
 		cache.Refered[*hitIdx] += 1
-		cache.Age[*hitIdx] = 0
 	}
 
 	return hit, hitIdx
 }
 
 func (cache *FullAssociativeLRUCache) CacheFiveTuple(f *FiveTuple) []*FiveTuple {
-	for i, _ := range cache.Entries {
-		cache.Age[i] += 1
+	oldestElem := cache.evictList.Back()
+
+	newEntry := entry{
+		Index:     oldestElem.Value.(entry).Index,
+		FiveTuple: *f,
 	}
 
-	oldestAge := -1
-	oldestAgeIdx := -1
-	for i, age := range cache.Age {
-		if cache.Entries[i] == (FiveTuple{}) {
-			oldestAgeIdx = i
-			break
-		}
+	replacedEntry := cache.evictList.Remove(oldestElem).(entry)
+	newElem := cache.evictList.PushFront(newEntry)
+	cache.Entries[newEntry.Index] = newElem
 
-		if oldestAge < age {
-			oldestAge = age
-			oldestAgeIdx = i
-		}
-	}
+	cache.Refered[replacedEntry.Index] = 0
 
-	fiveTupleToReplace := cache.Entries[oldestAgeIdx]
-
-	// fmt.Printf("Replace cache entry idx:%v, age:%v, refered:%v, entry:%v\n", oldestAgeIdx, oldestAge, cache.Refered[oldestAgeIdx], cache.Cache[oldestAgeIdx])
-	cache.Entries[oldestAgeIdx] = *f
-	cache.Age[oldestAgeIdx] = 0
-	cache.Refered[oldestAgeIdx] = 0
-
-	if fiveTupleToReplace == (FiveTuple{}) {
+	if replacedEntry.FiveTuple == (FiveTuple{}) {
 		return []*FiveTuple{}
 	}
 
-	return []*FiveTuple{&fiveTupleToReplace}
+	return []*FiveTuple{&replacedEntry.FiveTuple}
 }
 
 func (cache *FullAssociativeLRUCache) InvalidateFiveTuple(f *FiveTuple) {
-	var hitIdx *int
+	var hitElem *list.Element
 
-	for i, cacheEntry := range cache.Entries {
+	for _, elem := range cache.Entries {
+		cacheEntry := elem.Value.(entry).FiveTuple
 		if cacheEntry == *f {
-			hitIdx = &i
+			hitElem = elem
 			break
 		}
 	}
 
-	if hitIdx == nil {
+	if hitElem == nil {
 		panic("entry not cached")
 	}
 
-	cache.Entries[*hitIdx] = FiveTuple{}
-	cache.Age[*hitIdx] = 0
-	cache.Refered[*hitIdx] = 0
+	hitIdx := hitElem.Value.(entry).Index
+	hitElem.Value = entry{
+		Index:     hitIdx,
+		FiveTuple: FiveTuple{},
+	}
+	cache.evictList.MoveToBack(hitElem)
+	cache.Refered[hitIdx] = 0
 }
 
 func (cache *FullAssociativeLRUCache) Clear() {
