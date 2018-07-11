@@ -6,15 +6,14 @@ import (
 )
 
 type FullAssociativeLRUCache struct {
-	Entries []*list.Element
-	Refered []int
+	Entries map[FiveTuple]*list.Element
 	Size    uint
 
 	evictList *list.List
 }
 
 type entry struct {
-	Index     int
+	Refered   int
 	FiveTuple FiveTuple
 }
 
@@ -27,41 +26,32 @@ func (cache *FullAssociativeLRUCache) IsCached(p *Packet, update bool) (bool, *i
 }
 
 func (cache *FullAssociativeLRUCache) IsCachedWithFiveTuple(f *FiveTuple, update bool) (bool, *int) {
-	hit := false
-	var hitElem *list.Element
-	var hitIdx *int
-
-	for i, elem := range cache.Entries {
-		cacheEntry := elem.Value.(entry).FiveTuple
-		if cacheEntry == *f {
-			hit = true
-			hitElem = elem
-			hitIdx = &i
-			break
-		}
-	}
+	hitElem, hit := cache.Entries[*f]
 
 	if hit && update {
 		cache.evictList.MoveToFront(hitElem)
-		cache.Refered[*hitIdx] += 1
+		hitEntry := hitElem.Value.(entry)
+		hitElem.Value = entry{
+			Refered:   hitEntry.Refered + 1,
+			FiveTuple: hitEntry.FiveTuple,
+		}
 	}
 
-	return hit, hitIdx
+	return hit, nil
 }
 
 func (cache *FullAssociativeLRUCache) CacheFiveTuple(f *FiveTuple) []*FiveTuple {
 	oldestElem := cache.evictList.Back()
 
+	replacedEntry := cache.evictList.Remove(oldestElem).(entry)
+	delete(cache.Entries, replacedEntry.FiveTuple)
+
 	newEntry := entry{
-		Index:     oldestElem.Value.(entry).Index,
 		FiveTuple: *f,
 	}
 
-	replacedEntry := cache.evictList.Remove(oldestElem).(entry)
 	newElem := cache.evictList.PushFront(newEntry)
-	cache.Entries[newEntry.Index] = newElem
-
-	cache.Refered[replacedEntry.Index] = 0
+	cache.Entries[*f] = newElem
 
 	if replacedEntry.FiveTuple == (FiveTuple{}) {
 		return []*FiveTuple{}
@@ -71,27 +61,16 @@ func (cache *FullAssociativeLRUCache) CacheFiveTuple(f *FiveTuple) []*FiveTuple 
 }
 
 func (cache *FullAssociativeLRUCache) InvalidateFiveTuple(f *FiveTuple) {
-	var hitElem *list.Element
+	hitElem, hit := cache.Entries[*f]
 
-	for _, elem := range cache.Entries {
-		cacheEntry := elem.Value.(entry).FiveTuple
-		if cacheEntry == *f {
-			hitElem = elem
-			break
-		}
-	}
-
-	if hitElem == nil {
+	if !hit {
 		panic("entry not cached")
 	}
 
-	hitIdx := hitElem.Value.(entry).Index
-	hitElem.Value = entry{
-		Index:     hitIdx,
-		FiveTuple: FiveTuple{},
-	}
-	cache.evictList.MoveToBack(hitElem)
-	cache.Refered[hitIdx] = 0
+	cache.evictList.Remove(hitElem)
+	delete(cache.Entries, *f)
+
+	cache.evictList.PushBack(entry{})
 }
 
 func (cache *FullAssociativeLRUCache) Clear() {

@@ -36,23 +36,17 @@ func (sim *SimpleCacheSimulator) GetStat() CacheSimulatorStat {
 }
 
 func NewFullAssociativeLRUCache(size uint) *FullAssociativeLRUCache {
-	cache := &FullAssociativeLRUCache{
-		Entries:   make([]*list.Element, size),
-		Refered:   make([]int, size),
-		Size:      size,
-		evictList: list.New(),
-	}
+	evictList := list.New()
 
 	for i := 0; i < int(size); i++ {
-		entry := entry{
-			Index:     i,
-			FiveTuple: FiveTuple{},
-		}
-		elem := cache.evictList.PushBack(entry)
-		cache.Entries[i] = elem
+		evictList.PushBack(entry{})
 	}
 
-	return cache
+	return &FullAssociativeLRUCache{
+		Entries:   map[FiveTuple]*list.Element{},
+		Size:      size,
+		evictList: evictList,
+	}
 }
 
 func NewNWaySetAssociativeLRUCache(size, way uint) *NWaySetAssociativeLRUCache {
