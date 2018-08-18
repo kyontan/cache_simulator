@@ -82,5 +82,5 @@ func (cache *FullAssociativeLRUCache) Description() string {
 }
 
 func (cache *FullAssociativeLRUCache) ParameterString() string {
-	return fmt.Sprintf("Size: %d", cache.Size)
+	return fmt.Sprintf("{\"Type\": \"%s\", \"Size\": %d}", cache.Description(), cache.Size)
 }

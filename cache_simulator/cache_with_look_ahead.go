@@ -1,6 +1,8 @@
 package cache_simulator
 
 import (
+	"fmt"
+
 	"github.com/mervin0502/pcaparser"
 )
 
@@ -48,5 +50,5 @@ func (c *CacheWithLookAhead) Description() string {
 }
 
 func (c *CacheWithLookAhead) ParameterString() string {
-	return "[" + c.InnerCache.ParameterString() + "]"
+	return fmt.Sprintf("{\"Type\": \"%s\", \"InnerCache\": %s}", c.Description(), c.InnerCache.ParameterString())
 }

@@ -58,5 +58,5 @@ func (cache *NWaySetAssociativeLRUCache) Description() string {
 }
 
 func (cache *NWaySetAssociativeLRUCache) ParameterString() string {
-	return fmt.Sprintf("Way: %d, Size: %d", cache.Way, cache.Size)
+	return fmt.Sprintf("{\"Type\": \"%s\", \"Way\": %d, \"Size\": %d}", cache.Description(), cache.Way, cache.Size)
 }

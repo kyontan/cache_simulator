@@ -10,6 +10,7 @@ import (
 	"os"
 	"reflect"
 	"strconv"
+	"strings"
 
 	"github.com/yosuke-furukawa/json5/encoding/json5"
 
@@ -20,48 +21,70 @@ func parseCSVRecord(record []string) (*cache_simulator.Packet, error) {
 	packet := new(cache_simulator.Packet)
 	var err error
 
-	if len(record) != 7 {
-		return nil, errors.New("Record must have 7 fields, but not")
+	// 7-tuple: [time] [len] [srcIP] [dstIP] [proto] [srcPort] [dstPort]
+	// 8-tuple: [time] [srcIP] [srcPort] [dstIP] [dstPort] [proto] 0x[type (hex)] [len]
+
+	var recordTimeStr, recordPacketLenStr, recordProtoStr, recordSrcIPStr, recordSrcPortStr, recordDstIPStr, recordDstPortStr string
+
+	switch len(record) {
+	case 8:
+		recordTimeStr = record[0]
+		recordSrcIPStr = record[1]
+		recordSrcPortStr = record[2]
+		recordDstIPStr = record[3]
+		recordDstPortStr = record[4]
+		recordProtoStr = record[5]
+		recordPacketLenStr = record[7]
+	case 7:
+		recordTimeStr = record[0]
+		recordPacketLenStr = record[1]
+		recordSrcIPStr = record[2]
+		recordDstIPStr = record[3]
+		recordProtoStr = record[4]
+		recordSrcPortStr = record[5]
+		recordDstPortStr = record[6]
+	default:
+		return nil, fmt.Errorf("Expected record have 7 or 8 fields, but not: %d", len(record))
 	}
 
-	packet.Time, err = strconv.ParseFloat(record[0], 64)
+	packet.Time, err = strconv.ParseFloat(recordTimeStr, 64)
 	if err != nil {
 		return nil, err
 	}
-	plen, err := strconv.ParseUint(record[1], 10, 32)
+	packetLen, err := strconv.ParseUint(recordPacketLenStr, 10, 32)
 	if err != nil {
 		return nil, err
 	}
-	packet.Len = uint32(plen)
+	packet.Len = uint32(packetLen)
 
-	packet.SrcIP = net.ParseIP(record[2])
-	packet.DstIP = net.ParseIP(record[3])
-	packet.Proto = record[4]
+	packet.SrcIP = net.ParseIP(recordSrcIPStr)
+	packet.DstIP = net.ParseIP(recordDstIPStr)
+	packet.Proto = strings.ToLower(recordProtoStr)
 
 	switch packet.Proto {
 	case "tcp", "udp":
-		srcPort, err := strconv.ParseUint(record[5], 10, 16)
+		srcPort, err := strconv.ParseUint(recordSrcPortStr, 10, 16)
 		if err != nil {
 			return nil, err
 		}
 		packet.SrcPort = uint16(srcPort)
 
-		dstPort, err := strconv.ParseUint(record[6], 10, 16)
+		dstPort, err := strconv.ParseUint(recordDstPortStr, 10, 16)
 		if err != nil {
 			return nil, err
 		}
 		packet.DstPort = uint16(dstPort)
-	case "icmp":
-		icmpType, err := strconv.ParseUint(record[5], 10, 16)
-		if err != nil {
-			return nil, err
-		}
-		packet.IcmpType = uint16(icmpType)
-		icmpCode, err := strconv.ParseUint(record[6], 10, 16)
-		if err != nil {
-			return nil, err
-		}
-		packet.IcmpCode = uint16(icmpCode)
+	// case "icmp":
+	// 	icmpType, err := strconv.ParseUint(record[5], 10, 16)
+	// 	if err != nil {
+	// 		return nil, err
+	// 	}
+	// 	packet.IcmpType = uint16(icmpType)
+	// 	icmpCode, err := strconv.ParseUint(record[6], 10, 16)
+	// 	if err != nil {
+	// 		return nil, err
+	// 	}
+	// 	packet.IcmpCode = uint16(icmpCode)
 	default:
 		return nil, errors.New(fmt.Sprintf("unknown packet proto: %s", packet.Proto))
 	}
@@ -69,9 +92,44 @@ func parseCSVRecord(record []string) (*cache_simulator.Packet, error) {
 	return packet, nil
 }
 
+func getProperCSVReader(fp *os.File) *csv.Reader {
+	newReader := func(fp *os.File, comma rune) *csv.Reader {
+		fp.Seek(0, 0)
+		reader := csv.NewReader(fp)
+		reader.Comma = comma
+
+		return reader
+	}
+
+	tryRead := func(reader *csv.Reader) (bool, error) {
+		record, err := reader.Read()
+
+		if err == io.EOF {
+			return true, nil
+		}
+
+		if err != nil {
+			return false, err
+		}
+
+		return len(record) != 1, nil
+	}
+
+	for _, comma := range []rune{',', '\t', ' '} {
+		if ok, _ := tryRead(newReader(fp, comma)); ok {
+			return newReader(fp, comma)
+		}
+	}
+
+	return nil
+}
+
 func runSimpleCacheSimulatorWithCSV(fp *os.File, sim *cache_simulator.SimpleCacheSimulator, printInterval int) {
-	reader := csv.NewReader(fp)
-	reader.Comma = '\t'
+	reader := getProperCSVReader(fp)
+
+	if reader == nil {
+		panic("Can't read input as valid tsv/csv file")
+	}
 
 	for i := 0; ; i += 1 {
 		record, err := reader.Read()
@@ -92,7 +150,9 @@ func runSimpleCacheSimulatorWithCSV(fp *os.File, sim *cache_simulator.SimpleCach
 
 		packet, err := parseCSVRecord(record)
 		if err != nil {
-			panic(err)
+			fmt.Println("Error:", err)
+			continue
+			// panic(err)
 		}
 
 		if packet.FiveTuple() == nil {
@@ -100,11 +160,8 @@ func runSimpleCacheSimulatorWithCSV(fp *os.File, sim *cache_simulator.SimpleCach
 		}
 
 		sim.Process(packet)
-		// fmt.Printf("Process packet %v, hit: %v\n", packet, hit)
-		// fmt.Printf("%+v\n", packet.FiveTuple())
-		// fmt.Println(time, len, proto, srcIP, srcPort, dstIP, dstPort, icmpCode, icmpType)
 		if sim.GetStat().Processed%printInterval == 0 {
-			fmt.Printf("%v, %v\n", sim.GetStat(), sim.Cache.StatString())
+			fmt.Printf("%v\n", sim.GetStatString())
 		}
 	}
 }
@@ -133,9 +190,6 @@ func main() {
 		panic(err)
 	}
 
-	fmt.Println(cacheSim.Cache.Description())
-	fmt.Println(cacheSim.Cache.ParameterString())
-
 	var fpCSV *os.File
 
 	if len(os.Args) == 2 {
@@ -152,5 +206,5 @@ func main() {
 
 	runSimpleCacheSimulatorWithCSV(fpCSV, &cacheSim, 1)
 
-	fmt.Printf("%v, %v\n", cacheSim.GetStat(), cacheSim.Cache.StatString())
+	fmt.Printf("%v\n", cacheSim.GetStatString())
 }

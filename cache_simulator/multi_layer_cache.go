@@ -47,7 +47,43 @@ type MultiLayerCache struct {
 }
 
 func (c *MultiLayerCache) StatString() string {
-	return fmt.Sprintf("Refered: %v, Replaced: %v, Hit: %v", c.CacheReferedByLayer, c.CacheReplacedByLayer, c.CacheHitByLayer)
+	str := "{"
+
+	str += "\"Refered\": ["
+
+	for i, x := range c.CacheReferedByLayer {
+		if i != 0 {
+			str += ", "
+		}
+
+		str += fmt.Sprintf("%v", x)
+	}
+
+	str += "], "
+	str += "\"Replaced\": ["
+
+	for i, x := range c.CacheReplacedByLayer {
+		if i != 0 {
+			str += ", "
+		}
+
+		str += fmt.Sprintf("%v", x)
+	}
+
+	str += "], "
+	str += "\"Hit\": ["
+
+	for i, x := range c.CacheHitByLayer {
+		if i != 0 {
+			str += ", "
+		}
+
+		str += fmt.Sprintf("%v", x)
+	}
+
+	str += "]}"
+
+	return str
 }
 
 func (c *MultiLayerCache) IsCached(p *Packet, update bool) (bool, *int) {
@@ -154,24 +190,30 @@ func (c *MultiLayerCache) Description() string {
 
 func (c *MultiLayerCache) ParameterString() string {
 	// [{Size: 2, CachePolicy: Hoge}, {}]
-	str := "["
+	str := "{"
+
+	str += "\"Type\": \"MultiLayerCache\", "
+	str += "\"CacheLayers\": ["
 
 	for i, cacheLayer := range c.CacheLayers {
 		if i != 0 {
 			str += ", "
 		}
 
-		layerParameterStr := cacheLayer.ParameterString()
-
-		if i != (len(c.CacheLayers) - 1) {
-			if layerParameterStr != "" {
-				layerParameterStr += ", "
-			}
-			layerParameterStr += "CachePolicy: " + c.CachePolicies[i].String()
-		}
-		str += "{" + layerParameterStr + "}"
+		str += cacheLayer.ParameterString()
 	}
 
-	str += "]"
+	str += "], "
+	str += "\"CachePolicies\": ["
+
+	for i, cachePolicy := range c.CachePolicies {
+		if i != 0 {
+			str += ", "
+		}
+
+		str += fmt.Sprintf("\"%s\"", cachePolicy.String())
+	}
+
+	str += "]}"
 	return str
 }

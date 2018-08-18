@@ -35,6 +35,22 @@ func (sim *SimpleCacheSimulator) GetStat() CacheSimulatorStat {
 	return sim.Stat
 }
 
+func (sim *SimpleCacheSimulator) GetStatString() string {
+	stat := sim.Stat.String()
+
+	stat = stat[0 : len(stat)-1]
+
+	statDetail := sim.Cache.StatString()
+
+	if statDetail == "" {
+		stat += ", \"StatDetail\": null}"
+	} else {
+		stat += ", \"StatDetail\": " + statDetail + "}"
+	}
+
+	return stat
+}
+
 func NewFullAssociativeLRUCache(size uint) *FullAssociativeLRUCache {
 	evictList := list.New()
 
