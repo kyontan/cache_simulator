@@ -21,12 +21,24 @@ func (cache *FullAssociativeLRUCache) StatString() string {
 	return ""
 }
 
+func (cache *FullAssociativeLRUCache) AssertImmutableCondition() {
+	if int(cache.Size) < len(cache.Entries) {
+		panic(fmt.Sprintln("len(cache.Entries):", len(cache.Entries), ", expected: less than or equal to", cache.Size))
+	}
+
+	if cache.evictList.Len() != int(cache.Size) {
+		panic(fmt.Sprintln("cache.evictList.Len():", cache.evictList.Len(), ", expected: ", cache.Size))
+	}
+}
+
 func (cache *FullAssociativeLRUCache) IsCached(p *Packet, update bool) (bool, *int) {
 	return cache.IsCachedWithFiveTuple(p.FiveTuple(), update)
 }
 
 func (cache *FullAssociativeLRUCache) IsCachedWithFiveTuple(f *FiveTuple, update bool) (bool, *int) {
 	hitElem, hit := cache.Entries[*f]
+
+	cache.AssertImmutableCondition()
 
 	if hit && update {
 		cache.evictList.MoveToFront(hitElem)
@@ -39,10 +51,14 @@ func (cache *FullAssociativeLRUCache) IsCachedWithFiveTuple(f *FiveTuple, update
 		}
 	}
 
+	cache.AssertImmutableCondition()
+
 	return hit, nil
 }
 
 func (cache *FullAssociativeLRUCache) CacheFiveTuple(f *FiveTuple) []*FiveTuple {
+	cache.AssertImmutableCondition()
+
 	evictedFiveTuples := []*FiveTuple{}
 
 	if hit, _ := cache.IsCachedWithFiveTuple(f, true); hit {
@@ -60,6 +76,8 @@ func (cache *FullAssociativeLRUCache) CacheFiveTuple(f *FiveTuple) []*FiveTuple 
 
 	newElem := cache.evictList.PushFront(newEntry)
 	cache.Entries[*f] = newElem
+
+	cache.AssertImmutableCondition()
 
 	if replacedEntry.FiveTuple == (FiveTuple{}) {
 		return evictedFiveTuples
@@ -81,6 +99,8 @@ func (cache *FullAssociativeLRUCache) InvalidateFiveTuple(f *FiveTuple) {
 	delete(cache.Entries, *f)
 
 	cache.evictList.PushBack(entry{})
+
+	cache.AssertImmutableCondition()
 }
 
 func (cache *FullAssociativeLRUCache) Clear() {
