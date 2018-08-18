@@ -86,7 +86,7 @@ func parseCSVRecord(record []string) (*cache_simulator.Packet, error) {
 	// 	}
 	// 	packet.IcmpCode = uint16(icmpCode)
 	default:
-		return nil, errors.New(fmt.Sprintf("unknown packet proto: %s", packet.Proto))
+		return nil, fmt.Errorf("unknown packet proto: %s", packet.Proto)
 	}
 
 	return packet, nil
