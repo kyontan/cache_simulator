@@ -133,11 +133,11 @@ func (c *MultiLayerCache) IsCachedWithFiveTuple(f *FiveTuple, update bool) (bool
 	return hit, hitLayerIdx
 }
 
-func (c *MultiLayerCache) CacheFiveTupleToLayer(f *FiveTuple, layerIdx int) []*FiveTuple {
+func (c *MultiLayerCache) CacheFiveTuple(f *FiveTuple) []*FiveTuple {
 	fiveTuplesToCache := []*FiveTuple{f}
 	evictedFiveTuples := []*FiveTuple{}
 
-	for i, cache := range c.CacheLayers[layerIdx:] {
+	for i, cache := range c.CacheLayers {
 		fiveTuplesToCacheNextLayer := []*FiveTuple{}
 
 		for _, f := range fiveTuplesToCache {
@@ -160,10 +160,6 @@ func (c *MultiLayerCache) CacheFiveTupleToLayer(f *FiveTuple, layerIdx int) []*F
 	}
 
 	return evictedFiveTuples
-}
-
-func (c *MultiLayerCache) CacheFiveTuple(f *FiveTuple) []*FiveTuple {
-	return c.CacheFiveTupleToLayer(f, 0)
 }
 
 func (c *MultiLayerCache) InvalidateFiveTuple(f *FiveTuple) {
