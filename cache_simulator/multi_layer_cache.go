@@ -92,35 +92,42 @@ func (c *MultiLayerCache) IsCached(p *Packet, update bool) (bool, *int) {
 
 func (c *MultiLayerCache) IsCachedWithFiveTuple(f *FiveTuple, update bool) (bool, *int) {
 	hit := false
-	var hitLayerIdx *int
+	var hitLayerIdx *int // not nil if hit
 
 	for i, cache := range c.CacheLayers {
 		if update {
 			c.CacheReferedByLayer[i] += 1
 		}
+
 		if hitLayer, _ := cache.IsCachedWithFiveTuple(f, update); hitLayer {
 			if update {
 				c.CacheHitByLayer[i] += 1
 			}
 			hit = true
 			hitLayerIdx = &i
+
 			break
 		}
 	}
 
-	// cache miss at least L1 (layerIdx == 0)
-	if update && hitLayerIdx != nil && *hitLayerIdx != 0 {
-		// cache one layer upper, and then cache one more upper cache, ...
-		// for i := *hitLayerIdx - 1; 0 <= i; i-- {
-		// 	if c.CachePolicies[i] == WriteBackExclusive {
-		// 		// invalidate under layer
-		// 		c.CacheLayers[i+1].InvalidateFiveTuple(f)
-		// 	}
+	// Update under layer
+	if update && hit {
+		for offset_i, cache := range c.CacheLayers[*hitLayerIdx+1:] {
+			isCached, _ := cache.IsCachedWithFiveTuple(f, true)
 
-		// 	// cache upper layer
-		// 	c.CacheFiveTupleToLayer(f, i)
-		// }
+			if !isCached {
+				break
+			}
 
+			i := (*hitLayerIdx + 1) + offset_i
+			if i != (len(c.CacheLayers)-1) && c.CachePolicies[i] == WriteBackExclusive {
+				break
+			}
+		}
+	}
+
+	// if L1 (layerIdx == 0) cache miss at least
+	if update && hit && *hitLayerIdx != 0 {
 		// cache upper-most layer
 		if c.CachePolicies[*hitLayerIdx-1] == WriteBackExclusive {
 			// invalidate under layer
