@@ -30,6 +30,8 @@ func (cache *FullAssociativeLRUCache) IsCachedWithFiveTuple(f *FiveTuple, update
 
 	if hit && update {
 		cache.evictList.MoveToFront(hitElem)
+
+		// update refered count
 		hitEntry := hitElem.Value.(entry)
 		hitElem.Value = entry{
 			Refered:   hitEntry.Refered + 1,
@@ -41,6 +43,12 @@ func (cache *FullAssociativeLRUCache) IsCachedWithFiveTuple(f *FiveTuple, update
 }
 
 func (cache *FullAssociativeLRUCache) CacheFiveTuple(f *FiveTuple) []*FiveTuple {
+	evictedFiveTuples := []*FiveTuple{}
+
+	if hit, _ := cache.IsCachedWithFiveTuple(f, true); hit {
+		return evictedFiveTuples
+	}
+
 	oldestElem := cache.evictList.Back()
 
 	replacedEntry := cache.evictList.Remove(oldestElem).(entry)
@@ -54,10 +62,12 @@ func (cache *FullAssociativeLRUCache) CacheFiveTuple(f *FiveTuple) []*FiveTuple 
 	cache.Entries[*f] = newElem
 
 	if replacedEntry.FiveTuple == (FiveTuple{}) {
-		return []*FiveTuple{}
+		return evictedFiveTuples
 	}
 
-	return []*FiveTuple{&replacedEntry.FiveTuple}
+	evictedFiveTuples = append(evictedFiveTuples, &replacedEntry.FiveTuple)
+
+	return evictedFiveTuples
 }
 
 func (cache *FullAssociativeLRUCache) InvalidateFiveTuple(f *FiveTuple) {
