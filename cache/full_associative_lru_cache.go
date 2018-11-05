@@ -1,4 +1,4 @@
-package cache_simulator
+package cache
 
 import (
 	"container/list"
@@ -113,4 +113,18 @@ func (cache *FullAssociativeLRUCache) Description() string {
 
 func (cache *FullAssociativeLRUCache) ParameterString() string {
 	return fmt.Sprintf("{\"Type\": \"%s\", \"Size\": %d}", cache.Description(), cache.Size)
+}
+
+func NewFullAssociativeLRUCache(size uint) *FullAssociativeLRUCache {
+	evictList := list.New()
+
+	for i := 0; i < int(size); i++ {
+		evictList.PushBack(entry{})
+	}
+
+	return &FullAssociativeLRUCache{
+		Entries:   map[FiveTuple]*list.Element{},
+		Size:      size,
+		evictList: evictList,
+	}
 }

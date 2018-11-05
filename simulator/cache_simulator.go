@@ -1,7 +1,9 @@
-package cache_simulator
+package simulator
 
 import (
 	"fmt"
+
+	"github.com/kyontan/cache_simulator/cache"
 )
 
 type CacheSimulatorStat struct {
@@ -16,6 +18,6 @@ func (css CacheSimulatorStat) String() string {
 }
 
 type CacheSimulator interface {
-	Process(p *Packet) (hit bool)
+	Process(p *cache.Packet) (hit bool)
 	GetStat() (stat CacheSimulatorStat)
 }

@@ -13,11 +13,12 @@ import (
 
 	"github.com/yosuke-furukawa/json5/encoding/json5"
 
-	"routing_simulator/cache_simulator"
+	"github.com/kyontan/cache_simulator/cache"
+	"github.com/kyontan/cache_simulator/simulator"
 )
 
-func parseCSVRecord(record []string) (*cache_simulator.Packet, error) {
-	packet := new(cache_simulator.Packet)
+func parseCSVRecord(record []string) (*cache.Packet, error) {
+	packet := new(cache.Packet)
 	var err error
 
 	// 7-tuple: [time] [len] [srcIP] [dstIP] [proto] [srcPort] [dstPort]
@@ -73,17 +74,17 @@ func parseCSVRecord(record []string) (*cache_simulator.Packet, error) {
 			return nil, err
 		}
 		packet.DstPort = uint16(dstPort)
-	// case "icmp":
-	// 	icmpType, err := strconv.ParseUint(record[5], 10, 16)
-	// 	if err != nil {
-	// 		return nil, err
-	// 	}
-	// 	packet.IcmpType = uint16(icmpType)
-	// 	icmpCode, err := strconv.ParseUint(record[6], 10, 16)
-	// 	if err != nil {
-	// 		return nil, err
-	// 	}
-	// 	packet.IcmpCode = uint16(icmpCode)
+	case "icmp":
+		// icmpType, err := strconv.ParseUint(record[5], 10, 16)
+		// if err != nil {
+		// 	return nil, err
+		// }
+		// packet.IcmpType = uint16(icmpType)
+		// icmpCode, err := strconv.ParseUint(record[6], 10, 16)
+		// if err != nil {
+		// 	return nil, err
+		// }
+		// packet.IcmpCode = uint16(icmpCode)
 	default:
 		return nil, fmt.Errorf("unknown packet proto: %s", packet.Proto)
 	}
@@ -123,7 +124,7 @@ func getProperCSVReader(fp *os.File) *csv.Reader {
 	return nil
 }
 
-func runSimpleCacheSimulatorWithCSV(fp *os.File, sim *cache_simulator.SimpleCacheSimulator, printInterval int) {
+func runSimpleCacheSimulatorWithCSV(fp *os.File, sim *simulator.SimpleCacheSimulator, printInterval int) {
 	reader := getProperCSVReader(fp)
 
 	if reader == nil {
@@ -148,6 +149,11 @@ func runSimpleCacheSimulatorWithCSV(fp *os.File, sim *cache_simulator.SimpleCach
 		}
 
 		packet, err := parseCSVRecord(record)
+		if packet.Proto == "icmp" {
+			// ignore icmp packet
+			continue
+		}
+
 		if err != nil {
 			fmt.Println("Error:", err)
 			continue
@@ -183,7 +189,7 @@ func main() {
 		panic(err)
 	}
 
-	cacheSim, err := cache_simulator.BuildSimpleCacheSimulator(simlatorDefinition)
+	cacheSim, err := simulator.BuildSimpleCacheSimulator(simlatorDefinition)
 
 	if err != nil {
 		panic(err)
@@ -203,7 +209,7 @@ func main() {
 		defer fpCSV.Close()
 	}
 
-	runSimpleCacheSimulatorWithCSV(fpCSV, &cacheSim, 1)
+	runSimpleCacheSimulatorWithCSV(fpCSV, cacheSim, 1)
 
 	fmt.Printf("%v\n", cacheSim.GetStatString())
 }

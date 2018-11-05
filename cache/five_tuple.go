@@ -1,16 +1,24 @@
-package cache_simulator
+package cache
 
 import (
 	"encoding/binary"
 	"fmt"
 	"net"
+)
 
-	"github.com/mervin0502/pcaparser"
+type IPProtocol uint8
+
+const (
+	IP_ICMP   IPProtocol = 1
+	IP_TCP    IPProtocol = 6
+	IP_UDP    IPProtocol = 17
+	IP_ICMPv6 IPProtocol = 58
+	IP_L2TP   IPProtocol = 115
 )
 
 // uint8 + uint32 x 2 + uint16 x2 = 104 byte
 type FiveTuple struct {
-	Proto            pcaparser.IPv4Protocol
+	Proto            IPProtocol
 	SrcIP, DstIP     uint32
 	SrcPort, DstPort uint16
 }
@@ -28,42 +36,20 @@ func uint32ToIP(nn uint32) net.IP {
 	return ip
 }
 
-func StrToIPv4Protocol(proto string) pcaparser.IPv4Protocol {
+func StrToIPProtocol(proto string) IPProtocol {
 	switch proto {
 	case "ICMP", "icmp":
-		return pcaparser.IP_ICMPType
-	case "IGMP", "igmp":
-		return pcaparser.IP_IGMPType
-	case "IP", "ip":
-		return pcaparser.IP_IPType
+		return IP_ICMP
 	case "TCP", "tcp":
-		return pcaparser.IP_TCPType
-	case "EGP", "egp":
-		return pcaparser.IP_EGPType
-	case "IGP", "igp":
-		return pcaparser.IP_IGPType
+		return IP_TCP
+	case "ICMPv6", "icmpv6":
+		return IP_ICMPv6
 	case "UDP", "udp":
-		return pcaparser.IP_UDPType
-	case "RSVP", "rsvp":
-		return pcaparser.IP_RSVPType
-	case "GRE", "gre":
-		return pcaparser.IP_GREType
-	case "ESP", "esp":
-		return pcaparser.IP_ESPType
-	case "AH", "ah":
-		return pcaparser.IP_AHType
-	case "EIGRP", "eigrp":
-		return pcaparser.IP_EIGRPType
-	case "OSPF", "ospf":
-		return pcaparser.IP_OSPFType
-	case "IPIP", "ipip":
-		return pcaparser.IP_IPIPType
-	case "VRRP", "vrrp":
-		return pcaparser.IP_VRRPType
+		return IP_UDP
 	case "L2TP", "l2tp":
-		return pcaparser.IP_L2TPType
+		return IP_L2TP
 	default:
-		panic("Can't match any of the pcaparser.IPv4Protocol")
+		panic("Can't match any of the known protocols")
 	}
 }
 
@@ -75,10 +61,10 @@ func (p *Packet) FiveTuple() *FiveTuple {
 		proto64 = proto64 | uint64(p.Proto[i])
 	}
 
-	ipv4_proto := StrToIPv4Protocol(p.Proto)
-	switch ipv4_proto {
-	case pcaparser.IP_TCPType, pcaparser.IP_UDPType:
-		return &FiveTuple{ipv4_proto, ipToUInt32(p.SrcIP), ipToUInt32(p.DstIP), p.SrcPort, p.DstPort}
+	proto := StrToIPProtocol(p.Proto)
+	switch proto {
+	case IP_TCP, IP_UDP:
+		return &FiveTuple{proto, ipToUInt32(p.SrcIP), ipToUInt32(p.DstIP), p.SrcPort, p.DstPort}
 	// case "icmp":
 	// 	return FiveTuple{p.Proto, p.SrcIP, p.DstIP, 0, 0}
 	default:

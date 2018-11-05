@@ -1,4 +1,4 @@
-package cache_simulator
+package cache
 
 type Cache interface {
 	IsCached(p *Packet, update bool) (bool, *int)

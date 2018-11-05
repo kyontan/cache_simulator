@@ -1,20 +1,20 @@
-package cache_simulator
+package simulator
 
 import (
-	"container/list"
 	"fmt"
 
 	"github.com/koron/go-dproxy"
+	"github.com/kyontan/cache_simulator/cache"
 )
 
 type SimpleCacheSimulator struct {
-	Cache
+	cache.Cache
 	Stat CacheSimulatorStat
 }
 
-func (sim *SimpleCacheSimulator) Process(p *Packet) bool {
+func (sim *SimpleCacheSimulator) Process(p *cache.Packet) bool {
 	// find cache
-	cached := AccessCache(sim.Cache, p)
+	cached := cache.AccessCache(sim.Cache, p)
 
 	if cached {
 		sim.Stat.Hit += 1
@@ -51,39 +51,6 @@ func (sim *SimpleCacheSimulator) GetStatString() string {
 	return stat
 }
 
-func NewFullAssociativeLRUCache(size uint) *FullAssociativeLRUCache {
-	evictList := list.New()
-
-	for i := 0; i < int(size); i++ {
-		evictList.PushBack(entry{})
-	}
-
-	return &FullAssociativeLRUCache{
-		Entries:   map[FiveTuple]*list.Element{},
-		Size:      size,
-		evictList: evictList,
-	}
-}
-
-func NewNWaySetAssociativeLRUCache(size, way uint) *NWaySetAssociativeLRUCache {
-	if size%way != 0 {
-		panic("Size must be multiplier of way")
-	}
-
-	sets_size := size / way
-	sets := make([]FullAssociativeLRUCache, sets_size)
-
-	for i := uint(0); i < sets_size; i++ {
-		sets[i] = *NewFullAssociativeLRUCache(way)
-	}
-
-	return &NWaySetAssociativeLRUCache{
-		Sets: sets,
-		Way:  way,
-		Size: size,
-	}
-}
-
 func NewCacheSimulatorStat(description, parameter string) CacheSimulatorStat {
 	return CacheSimulatorStat{
 		Type:      description,
@@ -93,44 +60,44 @@ func NewCacheSimulatorStat(description, parameter string) CacheSimulatorStat {
 	}
 }
 
-func buildCache(p dproxy.Proxy) (Cache, error) {
+func buildCache(p dproxy.Proxy) (cache.Cache, error) {
 	cache_type, err := p.M("Type").String()
 
 	if err != nil {
 		return nil, err
 	}
 
-	var cache Cache
+	var c cache.Cache
 
 	switch cache_type {
 	case "CacheWithLookAhead":
 		innerCache, err := buildCache(p.M("InnerCache"))
 		if err != nil {
-			return cache, err
+			return c, err
 		}
 
-		cache = &CacheWithLookAhead{
+		c = &cache.CacheWithLookAhead{
 			InnerCache: innerCache,
 		}
 	case "FullAssociativeLRUCache":
 		size, err := p.M("Size").Int64()
 		if err != nil {
-			return cache, err
+			return c, err
 		}
 
-		cache = NewFullAssociativeLRUCache(uint(size))
+		c = cache.NewFullAssociativeLRUCache(uint(size))
 	case "NWaySetAssociativeLRUCache":
 		size, err := p.M("Size").Int64()
 		if err != nil {
-			return cache, err
+			return c, err
 		}
 
 		way, err := p.M("Way").Int64()
 		if err != nil {
-			return cache, err
+			return c, err
 		}
 
-		cache = NewNWaySetAssociativeLRUCache(uint(size), uint(way))
+		c = cache.NewNWaySetAssociativeLRUCache(uint(size), uint(way))
 	case "MultiLayerCache":
 		cacheLayersPS := p.M("CacheLayers").ProxySet()
 		cachePoliciesPS := p.M("CachePolicies").ProxySet()
@@ -138,29 +105,29 @@ func buildCache(p dproxy.Proxy) (Cache, error) {
 		cachePoliciesLen := cachePoliciesPS.Len()
 
 		if cachePoliciesLen != (cacheLayersLen - 1) {
-			return cache, fmt.Errorf("`CachePolicies` (%d items) must have `CacheLayers` length - 1 (%d) items", cachePoliciesLen, cacheLayersLen-1)
+			return c, fmt.Errorf("`CachePolicies` (%d items) must have `CacheLayers` length - 1 (%d) items", cachePoliciesLen, cacheLayersLen-1)
 		}
 
-		cacheLayers := make([]Cache, cacheLayersLen)
+		cacheLayers := make([]cache.Cache, cacheLayersLen)
 		for i := 0; i < cacheLayersLen; i++ {
 			cacheLayer, err := buildCache(cacheLayersPS.A(i))
 			if err != nil {
-				return cache, err
+				return c, err
 			}
 			cacheLayers[i] = cacheLayer
 		}
 
-		cachePolicies := make([]CachePolicy, cachePoliciesLen)
+		cachePolicies := make([]cache.CachePolicy, cachePoliciesLen)
 		for i := 0; i < cachePoliciesLen; i++ {
 			cachePolicyStr, err := cachePoliciesPS.A(i).String()
 			if err != nil {
-				return cache, err
+				return c, err
 			}
 
-			cachePolicies[i] = StringToCachePolicy(cachePolicyStr)
+			cachePolicies[i] = cache.StringToCachePolicy(cachePolicyStr)
 		}
 
-		cache = &MultiLayerCache{
+		c = &cache.MultiLayerCache{
 			CacheLayers:          cacheLayers,
 			CachePolicies:        cachePolicies,
 			CacheReferedByLayer:  make([]uint, cacheLayersLen),
@@ -171,20 +138,20 @@ func buildCache(p dproxy.Proxy) (Cache, error) {
 		return nil, fmt.Errorf("Unsupported cache type: %s", cache_type)
 	}
 
-	return cache, nil
+	return c, nil
 }
 
-func BuildSimpleCacheSimulator(json interface{}) (SimpleCacheSimulator, error) {
+func BuildSimpleCacheSimulator(json interface{}) (*SimpleCacheSimulator, error) {
 	p := dproxy.New(json)
 
 	simType, err := p.M("Type").String()
 
 	if err != nil {
-		return SimpleCacheSimulator{}, err
+		return nil, err
 	}
 
 	if simType != "SimpleCacheSimulator" {
-		return SimpleCacheSimulator{}, fmt.Errorf("Unsupported simulator type: %s", simType)
+		return nil, fmt.Errorf("Unsupported simulator type: %s", simType)
 	}
 
 	cacheProxy := p.M("Cache")
@@ -192,10 +159,10 @@ func BuildSimpleCacheSimulator(json interface{}) (SimpleCacheSimulator, error) {
 	cache, err := buildCache(cacheProxy)
 
 	if err != nil {
-		return SimpleCacheSimulator{}, err
+		return nil, err
 	}
 
-	sim := SimpleCacheSimulator{
+	sim := &SimpleCacheSimulator{
 		Cache: cache,
 		Stat: NewCacheSimulatorStat(
 			cache.Description(),

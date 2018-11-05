@@ -1,9 +1,7 @@
-package cache_simulator
+package cache
 
 import (
 	"fmt"
-
-	"github.com/mervin0502/pcaparser"
 )
 
 type CacheWithLookAhead struct {
@@ -25,7 +23,7 @@ func (c *CacheWithLookAhead) IsCachedWithFiveTuple(f *FiveTuple, update bool) (b
 func (c *CacheWithLookAhead) CacheFiveTuple(f *FiveTuple) []*FiveTuple {
 	evictedFiveTuples := c.InnerCache.CacheFiveTuple(f)
 
-	if f.Proto == pcaparser.IP_TCPType {
+	if f.Proto == IP_TCP {
 		swapped := (*f).SwapSrcAndDst()
 
 		if cached, _ := c.InnerCache.IsCachedWithFiveTuple(&swapped, false); !cached {

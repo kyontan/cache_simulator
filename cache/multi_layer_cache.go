@@ -1,4 +1,4 @@
-package cache_simulator
+package cache
 
 import (
 	"fmt"

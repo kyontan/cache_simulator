@@ -1,4 +1,4 @@
-package cache_simulator
+package cache
 
 import (
 	"bytes"
@@ -59,4 +59,23 @@ func (cache *NWaySetAssociativeLRUCache) Description() string {
 
 func (cache *NWaySetAssociativeLRUCache) ParameterString() string {
 	return fmt.Sprintf("{\"Type\": \"%s\", \"Way\": %d, \"Size\": %d}", cache.Description(), cache.Way, cache.Size)
+}
+
+func NewNWaySetAssociativeLRUCache(size, way uint) *NWaySetAssociativeLRUCache {
+	if size%way != 0 {
+		panic("Size must be multiplier of way")
+	}
+
+	sets_size := size / way
+	sets := make([]FullAssociativeLRUCache, sets_size)
+
+	for i := uint(0); i < sets_size; i++ {
+		sets[i] = *NewFullAssociativeLRUCache(way)
+	}
+
+	return &NWaySetAssociativeLRUCache{
+		Sets: sets,
+		Way:  way,
+		Size: size,
+	}
 }
