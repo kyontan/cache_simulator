@@ -12,7 +12,7 @@ type FullAssociativeLRUCache struct {
 	evictList *list.List
 }
 
-type entry struct {
+type fullAssociativeLRUCacheEntry struct {
 	Refered   int
 	FiveTuple FiveTuple
 }
@@ -44,8 +44,8 @@ func (cache *FullAssociativeLRUCache) IsCachedWithFiveTuple(f *FiveTuple, update
 		cache.evictList.MoveToFront(hitElem)
 
 		// update refered count
-		hitEntry := hitElem.Value.(entry)
-		hitElem.Value = entry{
+		hitEntry := hitElem.Value.(fullAssociativeLRUCacheEntry)
+		hitElem.Value = fullAssociativeLRUCacheEntry{
 			Refered:   hitEntry.Refered + 1,
 			FiveTuple: hitEntry.FiveTuple,
 		}
@@ -67,10 +67,10 @@ func (cache *FullAssociativeLRUCache) CacheFiveTuple(f *FiveTuple) []*FiveTuple 
 
 	oldestElem := cache.evictList.Back()
 
-	replacedEntry := cache.evictList.Remove(oldestElem).(entry)
+	replacedEntry := cache.evictList.Remove(oldestElem).(fullAssociativeLRUCacheEntry)
 	delete(cache.Entries, replacedEntry.FiveTuple)
 
-	newEntry := entry{
+	newEntry := fullAssociativeLRUCacheEntry{
 		FiveTuple: *f,
 	}
 
@@ -98,7 +98,7 @@ func (cache *FullAssociativeLRUCache) InvalidateFiveTuple(f *FiveTuple) {
 	cache.evictList.Remove(hitElem)
 	delete(cache.Entries, *f)
 
-	cache.evictList.PushBack(entry{})
+	cache.evictList.PushBack(fullAssociativeLRUCacheEntry{})
 
 	cache.AssertImmutableCondition()
 }
@@ -119,7 +119,7 @@ func NewFullAssociativeLRUCache(size uint) *FullAssociativeLRUCache {
 	evictList := list.New()
 
 	for i := 0; i < int(size); i++ {
-		evictList.PushBack(entry{})
+		evictList.PushBack(fullAssociativeLRUCacheEntry{})
 	}
 
 	return &FullAssociativeLRUCache{
