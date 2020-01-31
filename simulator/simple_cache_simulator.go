@@ -86,6 +86,13 @@ func buildCache(p dproxy.Proxy) (cache.Cache, error) {
 		}
 
 		c = cache.NewFullAssociativeLRUCache(uint(size))
+	case "FullAssociativeTreePLRUCache":
+		size, err := p.M("Size").Int64()
+		if err != nil {
+			return c, err
+		}
+
+		c = cache.NewFullAssociativeTreePLRUCache(uint(size))
 	case "NWaySetAssociativeLRUCache":
 		size, err := p.M("Size").Int64()
 		if err != nil {
@@ -98,6 +105,18 @@ func buildCache(p dproxy.Proxy) (cache.Cache, error) {
 		}
 
 		c = cache.NewNWaySetAssociativeLRUCache(uint(size), uint(way))
+	case "NWaySetAssociativeTreePLRUCache":
+		size, err := p.M("Size").Int64()
+		if err != nil {
+			return c, err
+		}
+
+		way, err := p.M("Way").Int64()
+		if err != nil {
+			return c, err
+		}
+
+		c = cache.NewNWaySetAssociativeTreePLRUCache(uint(size), uint(way))
 	case "MultiLayerCache":
 		cacheLayersPS := p.M("CacheLayers").ProxySet()
 		cachePoliciesPS := p.M("CachePolicies").ProxySet()
