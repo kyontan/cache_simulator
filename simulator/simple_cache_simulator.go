@@ -93,6 +93,27 @@ func buildCache(p dproxy.Proxy) (cache.Cache, error) {
 		}
 
 		c = cache.NewFullAssociativeTreePLRUCache(uint(size))
+	case "FullAssociativeLFUCache":
+		size, err := p.M("Size").Int64()
+		if err != nil {
+			return c, err
+		}
+
+		c = cache.NewFullAssociativeLFUCache(uint(size))
+	case "FullAssociativeRandomCache":
+		size, err := p.M("Size").Int64()
+		if err != nil {
+			return c, err
+		}
+
+		c = cache.NewFullAssociativeRandomCache(uint(size))
+	case "FullAssociativeFIFOCache":
+		size, err := p.M("Size").Int64()
+		if err != nil {
+			return c, err
+		}
+
+		c = cache.NewFullAssociativeFIFOCache(uint(size))
 	case "NWaySetAssociativeLRUCache":
 		size, err := p.M("Size").Int64()
 		if err != nil {
@@ -117,6 +138,42 @@ func buildCache(p dproxy.Proxy) (cache.Cache, error) {
 		}
 
 		c = cache.NewNWaySetAssociativeTreePLRUCache(uint(size), uint(way))
+	case "NWaySetAssociativeLFUCache":
+		size, err := p.M("Size").Int64()
+		if err != nil {
+			return c, err
+		}
+
+		way, err := p.M("Way").Int64()
+		if err != nil {
+			return c, err
+		}
+
+		c = cache.NewNWaySetAssociativeLFUCache(uint(size), uint(way))
+	case "NWaySetAssociativeRandomCache":
+		size, err := p.M("Size").Int64()
+		if err != nil {
+			return c, err
+		}
+
+		way, err := p.M("Way").Int64()
+		if err != nil {
+			return c, err
+		}
+
+		c = cache.NewNWaySetAssociativeRandomCache(uint(size), uint(way))
+	case "NWaySetAssociativeFIFOCache":
+		size, err := p.M("Size").Int64()
+		if err != nil {
+			return c, err
+		}
+
+		way, err := p.M("Way").Int64()
+		if err != nil {
+			return c, err
+		}
+
+		c = cache.NewNWaySetAssociativeFIFOCache(uint(size), uint(way))
 	case "MultiLayerCache":
 		cacheLayersPS := p.M("CacheLayers").ProxySet()
 		cachePoliciesPS := p.M("CachePolicies").ProxySet()
