@@ -77,16 +77,30 @@ func (cache *FullAssociativeLFUCache) CacheFiveTuple(f *FiveTuple) []*FiveTuple 
 		return evictedFiveTuples
 	}
 
-	oldestElem := cache.evictList.Back()
+	lfuElem := cache.evictList.Back()
 
-	replacedEntry := cache.evictList.Remove(oldestElem).(fullAssociativeLFUCacheEntry)
+	replacedEntry := cache.evictList.Remove(lfuElem).(fullAssociativeLFUCacheEntry)
 	delete(cache.Entries, replacedEntry.FiveTuple)
 
 	newEntry := fullAssociativeLFUCacheEntry{
 		FiveTuple: *f,
 	}
 
-	newElem := cache.evictList.PushFront(newEntry)
+	oldLFUel := cache.evictList.Back()
+
+	newElem := cache.evictList.PushBack(newEntry)
+
+	// move newElem to successor of an elem that is refered at least 1 time.
+	for oldLFUel != nil && oldLFUel.Value.(fullAssociativeLFUCacheEntry).Refered == 0 {
+		oldLFUel = oldLFUel.Prev()
+	}
+
+	if oldLFUel == nil {
+		cache.evictList.MoveToFront(newElem)
+	} else {
+		cache.evictList.MoveAfter(newElem, oldLFUel)
+	}
+
 	cache.Entries[*f] = newElem
 
 	cache.AssertImmutableCondition()
